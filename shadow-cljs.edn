@@ -1,0 +1,22 @@
+{:deps     true
+
+ :dev-http {8000 "public"
+            1234 "public/js/test"}
+
+ ;; most probably you'll have to provide your own localhost cert
+ ;; https connection required by iOS Safari to give permissions to play audio
+ ;:ssl      {:keystore "ssl/localhost.jks"
+ ;           :password "123456"}
+
+ :builds
+           {:demo
+            {:target           :browser
+             :modules          {:main {:init-fn cljs-audio.app/main}}
+             :release          {:js-options {:minimize-require true}}
+             :compiler-options {:infer-externs :auto}}
+            :test
+            {:target   :browser-test
+             :test-dir "public/js/test"
+             :autorun  true
+             }
+            }}

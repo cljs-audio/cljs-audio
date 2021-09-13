@@ -1,0 +1,11 @@
+{
+  "name": "cljs-audio",
+  "version": "0.0.1",
+  "private": true,
+  "devDependencies": {
+    "shadow-cljs": "2.15.5"
+  },
+  "dependencies": {
+    "standardized-audio-context": "^25.3.6"
+  }
+}
