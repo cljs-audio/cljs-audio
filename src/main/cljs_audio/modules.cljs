@@ -9,13 +9,12 @@
                                                         :mod #{{:vca :gain}}}])
 
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
-  [{:fx  [:delay {:delay-time time} [5]]
-    :out [:gain {:gain gain}]}
+  [{:fx  [:delay {:delay-time time} [5]]}
    #{[:> :fx]
-     [:fx :out]
-     [:out :>]}])
+     [:fx :>]}])
 
-(defn multi-tap-delay [{:keys [times gains] :or {times (mapv at-start [0.2 0.4 0.8 1]) gains [(at-start 1)]}}]
+(defn multi-tap-delay [{:keys [times gains] :or {times (mapv at-start [0.2 0.4 0.8 1])
+                                                 gains (mapv at-start [0.6 0.4 0.2 0.1])}}]
   (let [delays (map-indexed
                  (fn [i [time gain]] [(keyword (str i)) (delay-fx {:time time :gain gain})])
                  (mapv vector times (apply concat (repeat gains))))

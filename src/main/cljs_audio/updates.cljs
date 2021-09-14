@@ -5,81 +5,50 @@
             [clojure.spec.alpha :as s]))
 
 (defn path-type [path patch]
-  (if (= path [:group :>])
-    :top-:>
+  (case path
+    [:group :cljs-audio.updates/out] :top
+    [:group :cljs-audio.updates/in] nil
     (let [id (last path)]
-      (cond
-        (= id ::>) ::>
-        (vector? id) (if (get-in patch (into (vec (butlast path)) [(first id)]))
-                       :parameter
-                       nil)
-        (= id :>) :>
-        :else (let [thing (get-in patch path)]
-                (cond
-                  (:type thing) :node
-                  (:connections thing) :patch
-                  :else nil))))))
+      (if (vector? id)
+        (if (get-in patch (into (vec (butlast path)) [(first id)]))
+          :parameter
+          nil)
+        (let [thing (get-in patch path)]
+          (cond
+            (:type thing) :node
+            (:connections thing) :patch
+            :else (println "Can't parse " path patch)))))))
 
 (defmulti resolve-from path-type)
-
-(defmethod resolve-from :node [path]
-  path)
 
 (defmethod resolve-from nil [path]
   nil)
 
-(defmethod resolve-from :top-:> [path]
-  [:ctx])
+(defmethod resolve-from :node [path]
+  path)
+
+(defmethod resolve-from :top [path]
+  nil)
 
 (defmethod resolve-from :patch [path root-patch]
-  (let [patch (get-in root-patch path)
-        connections (:connections patch)
-        result (mapv (fn [[from-id to-id]] (resolve-from (into path [:group from-id]) root-patch))
-                     (filter (fn [[from-id to-id]] (= to-id :>)) connections))]
-    (into [] (first result))))
-
-(defmethod resolve-from :> [path _]
-  (conj (vec (drop-last path)) ::out))
-
-(defmethod resolve-from ::> [path patch]
-  (let [patch-id (last (drop-last 2 path))
-        parent-path (vec (drop-last 4 path))
-        parent-connections (get-in patch (into parent-path [:connections]))
-        result (first (mapv (fn [[from-id to-id]] (resolve-from (into parent-path [:group from-id]) patch))
-                            (filter (fn [[from-id to-id]] (= to-id patch-id)) parent-connections)))]
-    (into [] (if (= (:ctx result)) result (when result (resolve-from (conj (vec (drop-last result)) ::out) patch))))))
+  (into path [:group ::out]))
 
 (defmulti resolve-to path-type)
+
+(defmethod resolve-to nil [path]
+  nil)
 
 (defmethod resolve-to :node [path]
   path)
 
-(defmethod resolve-to :top-:> [path]
+(defmethod resolve-to :top [path]
   [:ctx])
 
 (defmethod resolve-to :parameter [path]
   path)
 
 (defmethod resolve-to :patch [path root-patch]
-  (let [patch (get-in root-patch path)
-        connections (:connections patch)
-        result (mapcat (fn [[_ to-id]] (resolve-to (into path [:group to-id]) root-patch))
-                       (filter (fn [[from-id _]] (= from-id :>)) connections))]
-    (into [] result)))
-
-(defmethod resolve-to ::> [path patch]
-  (let [patch-id (last (drop-last 2 path))
-        parent-path (vec (drop-last 4 path))
-        parent-connections (get-in patch (into parent-path [:connections]))
-        result (first (mapv (fn [[_ to-id]] (resolve-to (into parent-path [:group to-id]) patch))
-                            (filter (fn [[from-id _]] (= from-id patch-id)) parent-connections)))]
-    (into [] (if (= (:ctx result)) result (when result (resolve-from (conj (vec (drop-last result)) ::out) patch))))))
-
-(defmethod resolve-to :> [path _]
-  (conj (vec (drop-last path)) ::out))
-
-(defmethod resolve-to nil [path root-patch]
-  nil)
+  (into path [:group ::in]))
 
 (defn schedule [path name [command & args]]
   [:schedule path name command (vec args)])
@@ -115,16 +84,20 @@
 (defn make-connect [connection-path patch]
   (let [parent-patch-path (vec (drop-last 2 connection-path))
         [from-id to-id] (last connection-path)]
-    (let [from (into parent-patch-path [:group from-id])
-          from (resolve-from from patch)]
+    #_(when (= (last connection-path) [:fx :>]) (js-debugger))
+    (let [from-path (into parent-patch-path [:group from-id])
+          from (resolve-from from-path patch)]
       (if (vector? to-id)
         (let [[to-id parameter-name] to-id
-              to (into parent-patch-path [:group to-id])
-              to (resolve-to to patch)]
+              to-path (into parent-patch-path [:group to-id])
+              to (resolve-to to-path patch)]
           [(into [:connect-parameter] [from to parameter-name])])
-        (let [
-              to (into parent-patch-path [:group to-id])
-              to (resolve-to to patch)]
+        (let [to-path (into parent-patch-path [:group to-id])
+              to (resolve-to to-path patch)]
+          (println :to-id to-id)
+          (println :to-path to-path)
+          (println :to to)
+          #_(when (and (= from [:group :fx :group :fx]) (= to [:ctx])) (js-debugger))
           [(into [:connect] [from to])])))))
 
 (defn find-node-connections [node-path patch]
@@ -159,8 +132,7 @@
         out-path (into path [::out])
         patch (-> patch
                   (assoc-in in-path {:type :gain :parameters {} :create-args []})
-                  (assoc-in out-path {:type :gain :parameters {} :create-args []})
-                  (update-in (into (vec (drop-last path)) [:connections]) #(into % [[::out ::>]])))
+                  (assoc-in out-path {:type :gain :parameters {} :create-args []}))
         create-in-out-commands (if (= path [:group])
                                  []
                                  (into (add-node in-path patch)
@@ -290,12 +262,6 @@
         (:type node) (add-node path new-patch)
         :else (add-group (into path [:group]) new-patch)))))
 
-(defmethod update->commands :create-node-or-patch [[_ path] _ new-patch]
-  (let [node-or-patch (get-in new-patch path)]
-    (if (:type node-or-patch)                               ;; it is a primitive node
-      (add-node path new-patch)
-      (add-group path new-patch))))
-
 (defn ->node-ast [[type parameters create-args]] {:type type :parameters parameters :create-args create-args})
 
 (defn ->group-ast [group] (into {} (mapv (fn [[id node]] (if (keyword? (first node))
@@ -303,7 +269,9 @@
                                                            [id (->patch-ast node)]
                                                            )) (into [] group))))
 
-(defn ->connections-ast [connections] (if (map? connections) (set (into [] connections)) connections))
+(defn ->connections-ast [connections] (set (mapv (fn [[from-id to-id]] [(if (= from-id :>) ::in from-id)
+                                                                        (if (= to-id :>) ::out to-id)])
+                                                 (into [] connections))))
 
 (defn ->patch-ast [patch]
   (let [[group connections] patch]
