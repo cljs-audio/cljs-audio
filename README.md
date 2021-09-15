@@ -1,8 +1,28 @@
 # cljs-audio
 Convenient Web Audio for ClojureScript 
 ## Rationale
-It's really hard to manage a complex audio graph with Web Audio API due to the imperative nature of it.
-This library goal is to provide a declarative wrapper around it, akin to some popular libraries providing wrappers around imperative DOM manipulations.
+It's tough to manage a complex audio graph with Web Audio API due to its imperative nature.
+This library aims to provide a declarative wrapper around it, akin to some popular libraries providing wrappers around imperative DOM manipulations.
+The core of the library tries to be as minimal as possible and isolated from Web Audio intricacies. Hopefully, other back-ned would be possible in the future.
+
+### Principles
+
+- Declarative over imperative.
+- Convenience over purity.
+- Explicitness.
+- Unambiguity. 
+
+
 
 ## Code Example
-TODO
+```clojure
+;; Top-level audio environment
+[
+  ;; nodes and patches
+  {:vca [:gain {}]}  ;; single gain node named :vca
+  ;; connections
+  #{[:>   :vca]       ;; input to :vca
+    [:vca :>]        ;; :vca to output
+  }
+]
+```
