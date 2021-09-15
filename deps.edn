@@ -17,6 +17,5 @@
   medley/medley                       {:mvn/version "1.3.0"}}
 
   :aliases
-   {:release
-    {:extra-deps {nek/cljs-audio {:mvn/version "1.0.1"}}
-     :main-opts ["-m" "nek.cljs-audio"]}}}
+   {:demo
+    {:npm-deps {"standardized-audio-context" "25.3.9"}}}}}

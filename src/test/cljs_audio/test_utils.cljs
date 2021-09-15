@@ -1,8 +1,5 @@
 (ns cljs-audio.test-utils)
 
-(defn define-setter [o name spy]
-  (js/Object.defineProperty o name #js {"set" (fn [& args] (apply spy args))}))
-
 (defn simple-voice [{:keys [frequency detune type gain]
                      :or   {frequency 220 detune 0 type "triangle" gain 1}}]
   [{:osc  [:oscillator {:frequency frequency
@@ -71,8 +68,6 @@
     :fx   (fx {:gain gain})}
    #{[:oscs :fx]
      [:fx :>]}])
-
-(delayed-waveforms {:frequency 220})
 
 (defn synth [{:keys [frequency] :or {frequency 220}}]
   [{:voice1 (simple-voice {:frequency frequency})
