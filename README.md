@@ -7,10 +7,10 @@ The core of the library tries to be as minimal as possible and isolated from Web
 
 ### Principles
 
-Declarative over imperative.
-Convenience over purity.
-Explicitness.
-Unambiguity. 
+- Declarative over imperative.
+- Convenience over purity.
+- Explicitness.
+- Unambiguity. 
 
 
 
