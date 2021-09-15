@@ -26,4 +26,6 @@ pom.xml.asc
 
 ssl/*
 
+out
+
 settings.xml
