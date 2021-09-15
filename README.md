@@ -1,4 +1,6 @@
 # cljs-audio
+[![CircleCI](https://circleci.com/gh/Nek/cljs-audio/tree/master.svg?style=svg)](https://circleci.com/gh/Nek/cljs-audio/tree/master)
+
 Convenient Web Audio for ClojureScript 
 ## Rationale
 It's tough to manage a complex audio graph with Web Audio API due to its imperative nature.
