@@ -1,6 +1,6 @@
 (ns cljs-audio.app
   (:require
-    [cljs-audio.core :refer [make-audio update-audio]]
+    [cljs-audio.webaudio :refer [make-audio update-audio]]
     ["standardized-audio-context" :refer (AudioContext)]))
 
 (defonce audio (atom nil))
