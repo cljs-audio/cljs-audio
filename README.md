@@ -23,7 +23,7 @@ The core of the library tries to be as minimal as possible and isolated from Web
   ;; nodes and patches
   {:vca [:gain {}]}  ;; single gain node named :vca
   ;; connections
-  #{[:>   :vca]       ;; input to :vca
+  #{[:>   :vca]      ;; input to :vca
     [:vca :>]        ;; :vca to output
   }
 ]
