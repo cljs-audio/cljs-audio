@@ -10,4 +10,3 @@
   (let [updates (patches->commands patch new-patch)
         updated-env (eval-updates ctx env updates)]
     {:ctx ctx :patch new-patch :env updated-env}))
-git rm
