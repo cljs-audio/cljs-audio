@@ -25,3 +25,5 @@ pom.xml.asc
 .cpcache
 
 ssl/*
+
+settings.xml
