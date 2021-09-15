@@ -9,27 +9,31 @@
                                                         :mod #{{:vca :gain}}}])
 
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
-  [{:fx  [:delay {:delay-time time} [5]]}
-   #{[:> :fx]
-     [:fx :>]}])
+  [{:delay [:delay {:delay-time time} [5]]
+    :vca   [:gain {:gain gain}]}
+   #{[:> :delay]
+     [:delay :vca]
+     [:vca :>]}])
 
-(defn multi-tap-delay [{:keys [times gains] :or {times (mapv at-start [0.2 0.4 0.8 1])
-                                                 gains (mapv at-start [0.6 0.4 0.2 0.1])}}]
+(defn multi-tap-delay [{:keys [dry times gains] :or {dry   1
+                                                     times (mapv at-start [1])
+                                                     gains (mapv at-start [1])}}]
   (let [delays (map-indexed
-                 (fn [i [time gain]] [(keyword (str i)) (delay-fx {:time time :gain gain})])
-                 (mapv vector times (apply concat (repeat gains))))
-        delay-keys (keys (into {} delays))
-        out [:gain {}]
-        in [:gain {}]]
-    [(into {:out out :in in} delays)
-     (into (into #{[:out :>] [:> :in] [:in :out]} (mapv (fn [key] [:in key]) delay-keys))
-      (mapv (fn [key] [key :out]) delay-keys))]))
+                 (fn [i [time gain]] [(keyword (str i))
+                                      (delay-fx {:time time :gain gain})])
+                 (mapv vector times (apply concat
+                                           (repeat gains))))
+        delay-keys (keys (into {} delays))]
+    [(into {:dry [:gain []]} delays)
+     (into (into #{[:> :dry]
+                   [:dry :>]} (mapv (fn [key] [:> key]) delay-keys))
+           (mapv (fn [key] [key :>]) delay-keys))]))
 
 (defn simple-voice [{:keys [frequency detune type gain]
                      :or   {frequency 220 detune 0 type "triangle" gain 1}}]
-  [{:osc  [:oscillator {:frequency frequency
-                        :detune    detune
-                        :type      type} [1 2]]
+  [{:osc [:oscillator {:frequency frequency
+                       :detune    detune
+                       :type      type} [1 2]]
     :vca [:gain {:gain gain}]}
    #{[:osc :vca]
      [:vca :>]}])
@@ -81,11 +85,11 @@
     :3   [:oscillator {:frequency frequency :type "square"}]
     :mix [:gain {}]
     :vca (vca {:gain gain})}
-   #{[:1   :mix]
-    [:2   :mix]
-    [:3   :mix]
-    [:mix :vca]
-    [:vca :>]}])
+   #{[:1 :mix]
+     [:2 :mix]
+     [:3 :mix]
+     [:mix :vca]
+     [:vca :>]}])
 
 (defn delayed-waveforms [{:keys [frequency gain]}]
   [{:oscs (osc-bank {:frequency frequency :gain gain})

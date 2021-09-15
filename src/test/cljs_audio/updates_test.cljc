@@ -36,11 +36,14 @@
                                    #{[:fx :>]
                                      [:osc :fx]}]])
            [[:add-node [:group :fx :group :cljs-audio.updates/in] :gain []]
-            [:connect [:group :fx :group :cljs-audio.updates/in] [:group :fx :group :fx]]
+            [:connect [:group :fx :group :cljs-audio.updates/in] [:group :fx :group :delay]]
             [:add-node [:group :fx :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :fx :group :fx] [:group :fx :group :cljs-audio.updates/out]]
-            [:add-node [:group :fx :group :fx] :delay [5]]
-            [:set [:group :fx :group :fx] :delay-time 0.5]
+            [:connect [:group :fx :group :vca] [:group :fx :group :cljs-audio.updates/out]]
+            [:add-node [:group :fx :group :delay] :delay [5]]
+            [:set [:group :fx :group :delay] :delay-time 0.5]
+            [:connect [:group :fx :group :delay] [:group :fx :group :vca]]
+            [:add-node [:group :fx :group :vca] :gain []]
+            [:set [:group :fx :group :vca] :gain 1]
             [:connect [:group :osc] [:group :fx :group :cljs-audio.updates/in]]
             [:connect [:group :fx :group :cljs-audio.updates/out] [:ctx]]])))
   (testing "add a node with param"
