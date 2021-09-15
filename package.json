@@ -5,6 +5,9 @@
   "devDependencies": {
     "shadow-cljs": "2.15.5"
   },
+  "scripts": {
+    "dev": "shadow-cljs watch demo test"
+  },
   "dependencies": {
     "standardized-audio-context": "^25.3.6"
   }

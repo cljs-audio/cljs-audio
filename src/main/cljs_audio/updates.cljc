@@ -1,8 +1,7 @@
 (ns cljs-audio.updates
   (:require [editscript.core :as e]
-            [cljs-audio.utils :refer [derefable?]]
-            [cljs.core.match :refer [match]]
-            [clojure.spec.alpha :as s]))
+            [cljs.core.match :refer [match]]))
+
 
 (defn path-type [path patch]
   (case path
