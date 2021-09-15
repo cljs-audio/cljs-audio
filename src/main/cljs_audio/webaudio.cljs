@@ -1,4 +1,4 @@
-(ns cljs-audio.core
+(ns cljs-audio.webaudio
   (:require
     [cljs-audio.webaudio-interpreter :refer [eval-updates]]
     [cljs-audio.updates :refer [patches->commands]]))

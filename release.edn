@@ -1,0 +1,3 @@
+{:group-id "cljs-audio"
+ :artifact-id "cljs-audio"
+ :scm-url "https://github.com/Nek/cljs-audio"}
