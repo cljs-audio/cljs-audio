@@ -3,11 +3,6 @@
 
 (defn at-start [v] [:set-value-at-time v 0])
 
-(defn wow-fx [{:keys [frequency] :or {frequency 10}}] [{:vca [:gain {:gain 1}]
-                                                        :mod [:oscillator {:frequency frequency}]}
-                                                       {:vca :>
-                                                        :mod #{{:vca :gain}}}])
-
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
   [{:delay [:delay {:delay-time time} [5]]
     :vca   [:gain {:gain gain}]}
@@ -36,18 +31,6 @@
                        :type      type} [1 2]]
     :vca [:gain {:gain gain}]}
    #{[:osc :vca]
-     [:vca :>]}])
-
-(defn wow-voice [{:keys [frequency detune type gain]
-                  :or   {frequency 220 detune 0 type "triangle" gain 1}}]
-  [{:osc  [:oscillator {:frequency frequency
-                        :detune    detune
-                        :type      type} [1 2]]
-    :lfo  [:oscillator {:frequency 1
-                        :type      "sine"}]
-    :vca2 [:gain {:gain gain}]}
-   #{[:osc :vca]
-     [:lfo :vca :gain]
      [:vca :>]}])
 
 (defn simple-voice-minus-gain [{:keys [frequency detune type gain]
@@ -79,6 +62,12 @@
    #{[:io :>]
      [:> :io]}])
 
+(defn delayed-waveforms [{:keys [frequency gain]}]
+  [{:oscs (osc-bank {:frequency frequency :gain gain})
+    :fx   (fx {:gain gain})}
+   #{[:oscs :fx]
+     [:fx :>]}])
+
 (defn osc-bank [{:keys [frequency gain] :or {frequency 220 gain 1}}]
   [{:1   [:oscillator {:frequency frequency :type "sine"}]
     :2   [:oscillator {:frequency frequency :type "triangle"}]
@@ -90,14 +79,6 @@
      [:3 :mix]
      [:mix :vca]
      [:vca :>]}])
-
-(defn delayed-waveforms [{:keys [frequency gain]}]
-  [{:oscs (osc-bank {:frequency frequency :gain gain})
-    :fx   (fx {:gain gain})}
-   #{[:oscs :fx]
-     [:fx :>]}])
-
-(delayed-waveforms {:frequency 220})
 
 (defn synth [{:keys [frequency] :or {frequency 220}}]
   [{:voice1 (simple-voice {:frequency frequency})
