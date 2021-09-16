@@ -1,3 +1,4 @@
 {:group-id "org.clojars.awayfrompeople"
  :artifact-id "cljs-audio"
- :scm-url "https://github.com/Nek/cljs-audio"}
+ :scm-url "https://github.com/Nek/cljs-audio"
+ :version "0.1.0"}
