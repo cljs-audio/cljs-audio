@@ -44,7 +44,6 @@
                                                        {:frequency (* 4 freq) :gain 1 ::s/time (+ time (t/seconds 120 "1/4") (t/seconds 120 "1/4"))}]})))
 
 (defn resume-audio-context []
-  (println "!!")
   (let [ctx (new AudioContext)]
     (.then (.resume ctx)
            (fn []

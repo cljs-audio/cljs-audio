@@ -93,10 +93,6 @@
           [(into [:connect-parameter] [from to parameter-name])])
         (let [to-path (into parent-patch-path [:group to-id])
               to (resolve-to to-path patch)]
-          (println :to-id to-id)
-          (println :to-path to-path)
-          (println :to to)
-          #_(when (and (= from [:group :fx :group :fx]) (= to [:ctx])) (js-debugger))
           [(into [:connect] [from to])])))))
 
 (defn find-node-connections [node-path patch]
