@@ -19,6 +19,8 @@ The core of the library tries to be as minimal as possible and isolated from Web
 - Explicitness.
 - Unambiguity. 
 
+Also relevant [Dieter Rams' principles of good design applied to software engineering](https://github.com/zedr/dieter-rams-10-applied-to-software).
+
 
 
 ## Code Example
