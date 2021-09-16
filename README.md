@@ -2,6 +2,11 @@
 [![CircleCI](https://circleci.com/gh/cljs-audio/cljs-audio/tree/master.svg?style=svg)](https://circleci.com/gh/cljs-audio/cljs-audio/tree/master)
 
 Convenient Web Audio for ClojureScript 
+
+```[com.awayfrompeople/cljs-audio "0.1.2"]```
+
+```com.awayfrompeople/cljs-audio {:mvn/version "0.1.2"}```
+
 ## Rationale
 It's tough to manage a complex audio graph with Web Audio API due to its imperative style.
 This library aims to provide a declarative wrapper around it, akin to some popular libraries providing wrappers around imperative DOM manipulations.
