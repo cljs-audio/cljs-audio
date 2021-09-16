@@ -1,4 +1,4 @@
 {:group-id "com.awayfrompeople"
  :artifact-id "cljs-audio"
  :scm-url "https://github.com/Nek/cljs-audio"
- :version "0.1.0"}
+ :version "0.1.2"}
