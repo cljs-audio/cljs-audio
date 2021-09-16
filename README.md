@@ -1,5 +1,5 @@
 # cljs-audio
-[![CircleCI](https://circleci.com/gh/Nek/cljs-audio/tree/master.svg?style=svg)](https://circleci.com/gh/Nek/cljs-audio/tree/master)
+[![CircleCI](https://circleci.com/gh/cljs-audio/cljs-audio/tree/master.svg?style=svg)](https://circleci.com/gh/cljs-audio/cljs-audio/tree/master)
 
 Convenient Web Audio for ClojureScript 
 ## Rationale
