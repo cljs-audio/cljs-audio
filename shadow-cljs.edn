@@ -1,6 +1,6 @@
 {:deps     true
  :dev-http {8000 "public"}
- :builds   {:demo
+ :builds   {:example
             {:target           :browser
              :modules          {:main {:init-fn cljs-audio.app/main}}
              :release          {:js-options {:minimize-require true}}
