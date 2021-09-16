@@ -1,37 +1,73 @@
 (ns cljs-audio.app
   (:require
-    [cljs-audio.webaudio :refer [make-audio update-audio]]
+    [cljs-audio.webaudio :as wa]
+    [cljs-audio.envelopes :refer [adsr! adsr at-time!]]
+    [cljs-audio.scheduling :as s]
+    [cljs-audio.time :as t]
+    [cljs-audio.modules :as m]
+    [cljs.core.async :refer [go]]
+    [cljs.core.async.interop :refer-macros [<p!]]
     ["standardized-audio-context" :refer (AudioContext)]))
 
-(defonce audio (atom nil))
+(defn graph [{:keys [events ir]}]
+  (let [{:keys [frequency gain]} (s/schedule-parameters {:frequency at-time! :gain (partial adsr! 0.1 0.15 0.6 1 0.2)}
+                                                        events)]
+    [{:voice (m/simple-voice {:frequency frequency
+                              :gain      gain
+                              :type      "sawtooth"})
+      :voice2 (m/simple-voice {:frequency frequency
+                               :detune    -4
+                               :gain      gain
+                               :type      "sine"})
+      :reverb [:convolver {:buffer ir}]
+      :fx    (m/multi-tap-delay {:times (mapv m/at-start [(t/seconds 120 "1/4")
+                                                          (t/seconds 120 "1/2")
+                                                          (t/seconds 120 "1")]) :gains (mapv m/at-start [1 0.5 0.25 0.1])})
+      :vca    [:gain {:gain 0.3}]
+      :comp  [:dynamics-compressor {:threshold -50 :knee 40 :ratio 12 :attack 0 :release 0.25}]
+      }
+     #{[:voice2 :vca]
+       [:vca :reverb]
+       [:reverb :comp]
+       [:voice :fx]
+       [:fx :comp]
+       [:comp :>]
+       }]))
 
-(def events ["touchstart" "touchend" "click" "keydown"])
+(def audio (atom nil))
 
-(def switch (atom true))
-(def frequency (atom 220))
+(def events ["touchstart" "touchend" "mousedown" "keydown"])
 
-(defn simple-voice [{:keys [frequency detune gain]
-                     :or   {frequency 220 detune 0 gain 1}}]
-  [{:osc [:oscillator {:frequency frequency
-                       :detune    detune
-                       :type      "sine"} []]
-    :lfo [:oscillator {:frequency 2
-                       :type "sine"}]
-    :vca [:gain {:gain gain} []]}
-   {:osc :vca
-    :lfo [:vca :gain]
-    :vca :>}])
+(defn update-audio [{:keys [freq time stream ir]}]
+  (swap! audio wa/update-audio (graph {:ir ir :events [{:frequency freq :gain 1 ::s/time (+ time 0)}
+                                                       {:frequency (* 2 freq) :gain 1 ::s/time (+ time (t/seconds 120 "1/4"))}
+                                                       {:frequency (* 4 freq) :gain 1 ::s/time (+ time (t/seconds 120 "1/4") (t/seconds 120 "1/4"))}]})))
 
-(defonce mouse-y (atom 220))
-
-(defn resume-audio-context [] (let [ctx (new AudioContext)]
-                                (.then (.resume ctx)
-                                       (fn []
-                                         (doseq [ev events] (js/document.removeEventListener ev resume-audio-context))
-                                         (reset! audio (make-audio ctx))
-                                         (swap! audio update-audio (simple-voice 220))
-                                         (js/document.addEventListener "mousedown" (fn [] (swap! audio update-audio (simple-voice {:gain [[:set-target-at-time 0 (+ 0.1 (.-currentTime ctx)) 0.5] [:set-target-at-time 1 (+ 1 (.-currentTime ctx)).5]] :frequency @mouse-y})) false))
-                                         (js/document.addEventListener "mousemove" (fn [e] (reset! mouse-y (.-offsetY e)) false))))))
+(defn resume-audio-context []
+  (println "!!")
+  (let [ctx (new AudioContext)]
+    (.then (.resume ctx)
+           (fn []
+             (go
+               (let [ir-mp3 (<p! (js/fetch "resources/ir.mp3"))
+                     ir-audio-buffer (<p! (.arrayBuffer ir-mp3))
+                     ir-audio-data (<p! (.decodeAudioData ctx ir-audio-buffer))]
+                 (try
+                   (doseq [ev events] (.removeEventListener js/document.body ev resume-audio-context))
+                   (js/document.body.addEventListener "mousedown"
+                                                      (fn [e] (update-audio {:freq (.-offsetY e)
+                                                                             :time (.-currentTime ctx)
+                                                                             :ir   ir-audio-data})))
+                   (js/document.body.addEventListener "touchstart"
+                                                      (fn [e]
+                                                        (let [touch (.item (.-changedTouches e) 0)]
+                                                          (when (not (nil? touch))
+                                                            (update-audio {:freq (.-offsetY e)
+                                                                           :time (.-currentTime ctx)
+                                                                           :ir   ir-audio-data}))
+                                                          ))
+                                                      (reset! audio (wa/make-audio ctx nil)))
+                   (catch js/Error err (js/console.log (ex-cause err))))))))))
 
 (defn main []
-  (doseq [ev events] (js/document.addEventListener ev resume-audio-context false)))
+  (doseq [ev events] (js/document.body.addEventListener ev resume-audio-context false)))
