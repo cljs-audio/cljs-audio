@@ -54,14 +54,14 @@
                  (try
                    (doseq [ev events] (.removeEventListener js/document.body ev resume-audio-context))
                    (js/document.body.addEventListener "mousedown"
-                                                      (fn [e] (update-audio {:freq (.-offsetY e)
+                                                      (fn [e] (update-audio {:freq (/ (.-offsetY e) 10)
                                                                              :time (.-currentTime ctx)
                                                                              :ir   ir-audio-data})))
                    (js/document.body.addEventListener "touchstart"
                                                       (fn [e]
                                                         (let [touch (.item (.-changedTouches e) 0)]
                                                           (when (not (nil? touch))
-                                                            (update-audio {:freq (.-offsetY e)
+                                                            (update-audio {:freq (/ (.-offsetY e) 5)
                                                                            :time (.-currentTime ctx)
                                                                            :ir   ir-audio-data}))
                                                           ))
