@@ -8,7 +8,7 @@
   "scripts": {
     "example": "shadow-cljs watch example",
     "test": "shadow-cljs compile test && node out/node-tests.js",
-    "release": "rm -rf release && mkdir release && cp public/index.html release && cp -r public/resources release/resources && npx shadow-cljs release release-example"
+    "build:example": "rm -rf release && mkdir release && cp public/index.html release && cp -r public/resources release/resources && npx shadow-cljs release build-example"
   },
   "dependencies": {
     "standardized-audio-context": "^25.3.6"

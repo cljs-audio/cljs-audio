@@ -1,15 +1,15 @@
 {:deps     true
  :dev-http {8000 "public"}
  :builds   {:example
-                     {:target           :browser
-                      :modules          {:main {:init-fn cljs-audio.app/main}}
-                      :release          {:js-options {:minimize-require true}}
-                      :compiler-options {:infer-externs :auto}}
-            :release-example {:target     :browser
-                      :modules    {:main {:init-fn cljs-audio.app/main}}
-                      :release    {:js-options {:minimize-require true}}
-                      :output-dir "release/js"}
+                           {:target           :browser
+                            :modules          {:main {:init-fn cljs-audio.app/main}}
+                            :release          {:js-options {:minimize-require true}}
+                            :compiler-options {:infer-externs :auto}}
+            :build-example {:target     :browser
+                            :modules    {:main {:init-fn cljs-audio.app/main}}
+                            :release    {:js-options {:minimize-require true}}
+                            :output-dir "release/js"}
             :test
-                     {:target    :node-test
-                      :output-to "out/node-tests.js"
-                      :autorun   true}}}
+                           {:target    :node-test
+                            :output-to "out/node-tests.js"
+                            :autorun   true}}}
