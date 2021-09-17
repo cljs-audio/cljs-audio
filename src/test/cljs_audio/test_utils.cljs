@@ -1,4 +1,11 @@
-(ns cljs-audio.test-utils)
+(ns cljs-audio.test-utils
+  (:require [cljs-audio.modules :as m]))
+
+(defn delayed-waveforms [{:keys [frequency gain]}]
+  [{:oscs (m/osc-bank {:frequency frequency :gain gain})
+    :fx   (m/fx {:gain gain})}
+   #{[:oscs :fx]
+     [:fx :>]}])
 
 (defn simple-voice [{:keys [frequency detune type gain]
                      :or   {frequency 220 detune 0 type "triangle" gain 1}}]
@@ -9,18 +16,6 @@
    #{[:osc :vca2]
      [:vca2 :>]
      [:> :osc]}])
-
-(defn wow-voice [{:keys [frequency detune type gain]
-                  :or   {frequency 220 detune 0 type "triangle" gain 1}}]
-  [{:osc  [:oscillator {:frequency frequency
-                        :detune    detune
-                        :type      type} [1 2]]
-    :lfo  [:oscillator {:frequency 1
-                        :type      "sine"}]
-    :vca2 [:gain {:gain gain}]}
-   #{[:osc :vca]
-     [:lfo :vca :gain]
-     [:vca :>]}])
 
 (defn simple-voice-minus-gain [{:keys [frequency detune type gain]
                                 :or   {frequency 220 detune 0 type "triangle" gain 1}}]

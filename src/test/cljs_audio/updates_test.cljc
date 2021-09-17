@@ -5,6 +5,7 @@
     [cljs-audio.modules :as m]
     [cljs-audio.envelopes :refer [adsr! at-time!]]
     [cljs-audio.modules :as m]
+    [cljs-audio.test-utils :as tu]
     [cljs-audio.updates :as u :refer [path-type resolve-to resolve-from patches->commands ->patch-ast make-updates edit->update update->commands]]))
 
 (def context #js {:createOscillator (fn [] #js {:connect   (fn [] nil)
@@ -16,9 +17,9 @@
 (def simple-voice-instance (m/simple-voice {}))
 (def empty-patch [{} {}])
 (def vca-instance (m/vca {}))
-(def delayed-waveforms-instance (m/delayed-waveforms {:frequency 220 :gain 0.5}))
+(def delayed-waveforms-instance (tu/delayed-waveforms {:frequency 220 :gain 0.5}))
 
-(m/delayed-waveforms {:frequency 220 :gain 0.5})
+(tu/delayed-waveforms {:frequency 220 :gain 0.5})
 
 (defn run-update->commands [[a b]] (patches->commands a b))
 
@@ -170,7 +171,7 @@
             [:disconnect [:group :oscs :group :cljs-audio.updates/out] [:group :fx :group :cljs-audio.updates/in]]]
            )))
   (testing "change complex synth parameters"
-    (is (= (run-update->commands [delayed-waveforms-instance (m/delayed-waveforms {:frequency 880 :time 3 :gain 0.5})])
+    (is (= (run-update->commands [delayed-waveforms-instance (tu/delayed-waveforms {:frequency 880 :time 3 :gain 0.5})])
            [[:set [:group :oscs :group :1] :frequency 880]
             [:set [:group :oscs :group :2] :frequency 880]
             [:set [:group :oscs :group :3] :frequency 880]])))
