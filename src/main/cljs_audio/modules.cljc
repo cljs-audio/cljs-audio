@@ -62,12 +62,6 @@
    #{[:io :>]
      [:> :io]}])
 
-(defn delayed-waveforms [{:keys [frequency gain]}]
-  [{:oscs (osc-bank {:frequency frequency :gain gain})
-    :fx   (fx {:gain gain})}
-   #{[:oscs :fx]
-     [:fx :>]}])
-
 (defn osc-bank [{:keys [frequency gain] :or {frequency 220 gain 1}}]
   [{:1   [:oscillator {:frequency frequency :type "sine"}]
     :2   [:oscillator {:frequency frequency :type "triangle"}]

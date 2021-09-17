@@ -10,7 +10,7 @@
     ["standardized-audio-context" :refer (AudioContext)]))
 
 (defn graph [{:keys [events ir]}]
-  (let [{:keys [frequency gain]} (s/schedule-parameters {:frequency at-time! :gain (partial adsr! 0.1 0.15 0.6 1 0.2)}
+  (let [{:keys [frequency gain]} (s/schedule-parameters {:frequency at-time! :gain (partial adsr! 0.1 0.15 0.6 0.5 0.2)}
                                                         events)]
     [{:voice (m/simple-voice {:frequency frequency
                               :gain      gain
@@ -22,9 +22,9 @@
       :reverb [:convolver {:buffer ir}]
       :fx    (m/multi-tap-delay {:times (mapv m/at-start [(t/seconds 120 "1/4")
                                                           (t/seconds 120 "1/2")
-                                                          (t/seconds 120 "1")]) :gains (mapv m/at-start [1 0.5 0.25 0.1])})
+                                                          (t/seconds 120 "1")]) :gains (mapv m/at-start [0.5 0.25 0.125 0.05])})
       :vca    [:gain {:gain 0.3}]
-      :comp  [:dynamics-compressor {:threshold -50 :knee 40 :ratio 12 :attack 0 :release 0.25}]
+      :comp  [:dynamics-compressor {:threshold -50 :knee 0 :ratio 20 :attack 0.005 :release 0.050}]
       }
      #{[:voice2 :vca]
        [:vca :reverb]
@@ -39,9 +39,9 @@
 (def events ["touchstart" "touchend" "mousedown" "keydown"])
 
 (defn update-audio [{:keys [freq time stream ir]}]
-  (swap! audio wa/update-audio (graph {:ir ir :events [{:frequency freq :gain 1 ::s/time (+ time 0)}
-                                                       {:frequency (* 2 freq) :gain 1 ::s/time (+ time (t/seconds 120 "1/4"))}
-                                                       {:frequency (* 4 freq) :gain 1 ::s/time (+ time (t/seconds 120 "1/4") (t/seconds 120 "1/4"))}]})))
+  (swap! audio wa/update-audio (graph {:ir ir :events [{:frequency freq :gain 0.1 ::s/time (+ time 0)}
+                                                       {:frequency (* 2 freq) :gain 0.1 ::s/time (+ time (t/seconds 120 "1/4"))}
+                                                       {:frequency (* 4 freq) :gain 0.1 ::s/time (+ time (t/seconds 120 "1/4") (t/seconds 120 "1/4"))}]})))
 
 (defn resume-audio-context []
   (let [ctx (new AudioContext)]
