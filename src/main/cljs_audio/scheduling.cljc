@@ -9,8 +9,7 @@
             (let [curr-value (get res scheduler-key [])
                   scheduler (scheduler-key schedulers)
                   new-value (scheduler (scheduler-key event)
-                                       (::time event)
-                                       event)]
+                                       (::time event))]
               (assoc res scheduler-key
                          (into curr-value
                                new-value))))
