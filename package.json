@@ -7,7 +7,7 @@
   },
   "scripts": {
     "example": "shadow-cljs watch example",
-    "test": "shadow-cljs compile test && node out/node-tests.js",
+    "test": "shadow-cljs compile node-test && node out/node-tests.js",
     "build:example": "rm -rf release && mkdir release && cp public/index.html release && cp -r public/resources release/resources && npx shadow-cljs release build-example",
     "publish": "clj -M:release"
   },
