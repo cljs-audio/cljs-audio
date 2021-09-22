@@ -8,15 +8,17 @@
     [:group :cljs-audio.updates/out] :top
     [:group :cljs-audio.updates/in] nil
     (let [id (last path)]
-      (if (vector? id)
-        (if (get-in patch (into (vec (butlast path)) [(first id)]))
-          :parameter
-          nil)
-        (let [thing (get-in patch path)]
-          (cond
-            (:type thing) :node
-            (:connections thing) :patch
-            :else (println "Can't parse " path patch)))))))
+      (cond
+        (= id :cljs-audio.updates/out) :node
+        (= id :cljs-audio.updates/in) :node
+        (vector? id) (if (get-in patch (into (vec (butlast path)) [(first id)]))
+                       :parameter
+                       nil)
+        :else (let [thing (get-in patch path)]
+                (cond
+                  (:type thing) :node
+                  (:connections thing) :patch
+                  :else (println "Can't parse " thing path patch)))))))
 
 (defmulti resolve-from path-type)
 
@@ -83,7 +85,6 @@
 (defn make-connect [connection-path patch]
   (let [parent-patch-path (vec (drop-last 2 connection-path))
         [from-id to-id] (last connection-path)]
-    #_(when (= (last connection-path) [:fx :>]) (js-debugger))
     (let [from-path (into parent-patch-path [:group from-id])
           from (resolve-from from-path patch)]
       (if (vector? to-id)
@@ -117,9 +118,6 @@
 (defn make-remove-node [path]
   [[:disconnect path]
    [:remove-node path]])
-
-(def get-group first)
-(def get-connections second)
 
 (defn add-group [path patch]
   (let [group (get-in patch path)
@@ -181,10 +179,6 @@
          [[[_ :group & r] :r v]] [:replace-node path]
          [[[_ :group & r] :+ v]] [:add-node path]
          [[[:create-args id & r] :r v]] [:recreate-node path] ;; TODO:!!!
-         ;[[[_ :group :patch & r] :- v]] [ path]
-         ;; group
-
-         ;:else [:no-op]
          ))
 
 (defn make-updates [a b]
@@ -250,7 +244,7 @@
       (:type node) (add-node path new-patch)
       :else (add-group (into path [:group]) new-patch))))
 
-(defmethod update->commands :replace-node [[_ path] old-patch new-patch]
+(defn replace-node [path old-patch new-patch]
   (into
     (let [node (get-in old-patch path)]
       (cond
@@ -261,11 +255,15 @@
         (:type node) (add-node path new-patch)
         :else (add-group (into path [:group]) new-patch)))))
 
-(defmethod update->commands :start [[_ path] _ new-patch]
+(defmethod update->commands :replace-node [[_ path] old-patch new-patch]
+  (replace-node path old-patch new-patch))
+
+(defmethod update->commands :start [[_ path] old-patch new-patch]
   (let [value (get-in new-patch path)
-        node-path (vec (drop-last 2 path))]
-    (into (add-node node-path new-patch)
-          [[:start node-path value]])))
+        node-path (vec (drop-last 2 path))
+        res (into (replace-node node-path old-patch new-patch)
+                  [[:start node-path value]])]
+    res))
 
 (defmethod update->commands :stop [[_ path] _ new-patch]
   (let [value (get-in new-patch path)

@@ -57,7 +57,9 @@
 (defn stop [node-path time]
   (fn [_ env]
     (let [node (get-in env node-path)]
-      (when (exists? (.-stop node)) (.stop node time)))
+      (when (exists? (.-stop node))
+        (try (.stop node time)
+             (catch js/Error err (js/console.log (ex-cause err))))))
     env))
 
 (defn schedule [node-path param command args]
@@ -72,33 +74,38 @@
 (defn disconnect
   ([from-path to-path]
    (fn [ctx env]
-     (let [from-node (get-in env from-path)
-           to-node (if (= to-path [:ctx]) (.-destination ctx)
-                                          (get-in env to-path))]
-       (if (nil? to-node) (.disconnect from-node) (.disconnect from-node to-node)))
+     (let [from-node (get-in env from-path)]
+       (if (nil? to-path)
+         (.disconnect from-node)
+         (let [to-node (if (= to-path [:ctx]) (.-destination ctx)
+                                              (get-in env to-path))]
+           (.disconnect from-node to-node))))
      env)))
 
 (defn remove-node [node-path]
   (fn [_ env]
     (let [node (get-in env node-path)]
-      (when (exists? (.-stop node)) (.stop node)))
+      (when (exists? (.-stop node))
+        (try (.stop node)
+             (catch js/Error err (js/console.log (ex-cause err))))))
     (dissoc-in env node-path)))
 
 (defn sort-updates-by-priority [updates]
   (vec (sort-by (fn [thing]
                   (let [[update-name] thing]
-
-                    (update-name {
-                                  :add-node          1
-                                  :set               2
-                                  :connect           3
-                                  :connect-parameter 4
-                                  :disconnect        5
-                                  :remove-node       6
-                                  :schedule          7
-                                  :start             8
-                                  :stop              9
-                                  }))) updates)))
+                    (update-name
+                      (into {} (map-indexed
+                                 (fn [ndx command] [command ndx])
+                                 [:stop
+                                  :disconnect
+                                  :remove-node
+                                  :add-node
+                                  :set
+                                  :connect
+                                  :connect-parameter
+                                  :start
+                                  :schedule])))))
+                updates)))
 
 (defn update->side-fx [update]
   (match [update]
@@ -107,6 +114,7 @@
          [[:connect from-path to-path]] (connect from-path to-path)
          [[:connect-parameter from-path to-path parameter-name]] (connect-parameter from-path to-path parameter-name)
          [[:disconnect from-path to-path]] (disconnect from-path to-path)
+         [[:disconnect from-path]] (disconnect from-path nil)
          [[:remove-node node-path]] (remove-node node-path)
          [[:schedule node-path param command args]] (schedule node-path param command args)
          [[:start path time]] (start path time)

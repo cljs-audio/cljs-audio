@@ -6,6 +6,7 @@
     [cljs-audio.envelopes :refer [adsr! at-time!]]
     [cljs-audio.modules :as m]
     [cljs-audio.test-utils :as tu]
+    [cljs-audio.webaudio-interpreter :refer [sort-updates-by-priority]]
     [cljs-audio.updates :as u :refer [path-type resolve-to resolve-from patches->commands ->patch-ast make-updates edit->update update->commands]]))
 
 (def context #js {:createOscillator (fn [] #js {:connect   (fn [] nil)
@@ -380,22 +381,22 @@
   (testing ":add-connection simple"
     (is (= (run-update->commands add-connection-simple) [[:connect [:group :osc] [:group :vca]]])))
   #_(testing ":add-connection output nested"
-    (is (= (run-update->commands add-output-connection-nested)
-           [[:connect
-             [:group :waveforms :group :oscs :group :out :group :io]
-             [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]]])))
+      (is (= (run-update->commands add-output-connection-nested)
+             [[:connect
+               [:group :waveforms :group :oscs :group :out :group :io]
+               [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]]])))
   #_(testing ":remove-connection output nested"
-    (is (= (run-update->commands remove-output-connection-nested)
-           [[:disconnect
-             [:group :waveforms :group :oscs :group :out :group :io]
-             [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]]])))
+      (is (= (run-update->commands remove-output-connection-nested)
+             [[:disconnect
+               [:group :waveforms :group :oscs :group :out :group :io]
+               [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]]])))
   (testing ":remove-connection simple"
     (is (= (run-update->commands remove-connection-simple) [[:disconnect [:group :osc] [:group :vca]]])))
   #_(testing ":add-connection input nested"
-    (is (= (run-update->commands add-input-connection-nested)
-           [[:connect
-             [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]
-             [:group :waveforms :group :oscs :group :out :group :io]]])))
+      (is (= (run-update->commands add-input-connection-nested)
+             [[:connect
+               [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]
+               [:group :waveforms :group :oscs :group :out :group :io]]])))
   (testing ":replace-connection simple"
     (is (= (run-update->commands reconnect-simple) [[:disconnect [:group :osc] [:group :vca]]
                                                     [:connect [:group :osc2] [:group :vca2]]])))
@@ -407,9 +408,9 @@
                                                            [:connect [:group :osc] [:group :vca]]
                                                            [:connect [:group :vca] [:ctx]]])))
   #_(testing ":replace-all-connections nested"
-    (is (= (run-update->commands replace-all-connections-nested)
-           [[:connect [:group :waveforms :group :oscs :group :out :group :io] [:group :waveforms :group :cljs-audio.updates/out]]
-            [:connect [:group :waveforms :group :cljs-audio.updates/out] [:group :waveforms :group :oscs :group :out :group :io]]])))
+      (is (= (run-update->commands replace-all-connections-nested)
+             [[:connect [:group :waveforms :group :oscs :group :out :group :io] [:group :waveforms :group :cljs-audio.updates/out]]
+              [:connect [:group :waveforms :group :cljs-audio.updates/out] [:group :waveforms :group :oscs :group :out :group :io]]])))
   (testing ":add-connection to parameter"
     (is (= (run-update->commands connect-to-param) [[:connect-parameter [:group :osc2] [:group :vca] :gain]]))))
 
@@ -531,3 +532,34 @@
   )
 
 (run-update->commands [empty-patch super-complex-synth])
+
+(defn one-shot-sample [{:keys [buffer start-time rate] :or {buffer nil start-time nil rate 1}}]
+  (println "start-time" start-time)
+  [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when start-time {:start start-time}))]}
+   #{[:player :>]}])
+
+(defn top-level []
+  (let [kick nil
+        time 0
+        bpm 120
+        double-kick nil
+        ch nil
+        ir nil]
+    [{
+      :comp          [:dynamics-compressor {:threshold -50 :knee 0 :ratio 20 :attack 0.005 :release 0.050}]
+      :sampled-kick  (one-shot-sample {:buffer kick :start-time time})
+      :sampled-kick2 [:buffer-source {:playback-rate 0.7 :buffer kick :start (if double-kick (+ time (/ 60 (* 4 bpm))) 0)}]
+      :sampled-ch    [:buffer-source {:buffer ch :start (+ time (/ 60 (* 2 bpm)))}]
+      :reverb        [:convolver {:buffer ir}]
+      }
+     #{
+       [:sampled-ch :reverb]
+       [:sampled-ch :comp]
+       [:sampled-kick :comp]
+       [:sampled-kick2 :comp]
+       [:reverb :>]
+       [:comp :>]
+       }]))
+
+(sort-updates-by-priority
+  (run-update->commands [empty-patch (top-level)]))

@@ -1,5 +1,6 @@
 {:deps     true
- :dev-http {8000 "public"}
+ :dev-http {8000 "public"
+            }
  :builds   {:example
                            {:target           :browser
                             :modules          {:main {:init-fn cljs-audio.app/main}}
@@ -9,7 +10,12 @@
                             :modules    {:main {:init-fn cljs-audio.app/main}}
                             :release    {:js-options {:minimize-require true}}
                             :output-dir "release/js"}
-            :test
-                           {:target    :node-test
+            :node-test     {:target    :node-test
                             :output-to "out/node-tests.js"
-                            :autorun   true}}}
+                            :autorun   true}
+            :browser-test  {:target     :browser-test
+                            :test-dir   "out/test"
+                            :output-dir "out/test"
+                            :ns-regexp  "-test$"
+                            :devtools   {:http-port 8021
+                                         :http-root "out/test"}}}}

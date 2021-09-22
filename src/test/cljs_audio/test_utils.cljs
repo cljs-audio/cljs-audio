@@ -58,12 +58,6 @@
     :mix :vca
     :vca :>}])
 
-(defn delayed-waveforms [{:keys [frequency gain]}]
-  [{:oscs (osc-bank {:frequency frequency :gain gain})
-    :fx   (fx {:gain gain})}
-   #{[:oscs :fx]
-     [:fx :>]}])
-
 (defn synth [{:keys [frequency] :or {frequency 220}}]
   [{:voice1 (simple-voice {:frequency frequency})
     :voice2 (simple-voice {:frequency frequency})
