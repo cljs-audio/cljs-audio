@@ -1,5 +1,5 @@
 (ns cljs-audio.modules
-  (:require [cljs-audio.envelopes :refer [adsr!]]))
+  (:require [cljs-audio.envelopes :refer [adsr! adsr]]))
 
 (defn at-start [v] [:set-value-at-time v 0])
 
@@ -30,6 +30,14 @@
                        :detune    detune
                        :type      type} [1 2]]
     :vca [:gain {:gain gain}]}
+   #{[:osc :vca]
+     [:vca :>]}])
+
+(defn kick [{:keys [velocity time]
+             :or   {velocity 1 time 0}}]
+  [{:osc [:oscillator {:frequency 110
+                       :type      "sine"}]
+    :vca [:gain {:gain (adsr 0.01 0.1 0.8 0.1 0.05 velocity time)}]}
    #{[:osc :vca]
      [:vca :>]}])
 
