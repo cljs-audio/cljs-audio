@@ -12,7 +12,6 @@
                  ctx
                  (str "create"
                       (key->js (->PascalCaseKeyword type))) create-args)]
-      (when (exists? (.-start node)) (.start node))
       (assoc-in env
                 node-path
                 node))))
@@ -21,7 +20,7 @@
   (fn [ctx env]
     (let [from (get-in env from-path)
           to (if (= to-path [:ctx]) (.-destination ctx)
-                                          (get-in env to-path))]
+                                    (get-in env to-path))]
       (.connect from to)
       env)))
 
@@ -49,6 +48,18 @@
         (set! (.-value param) parameter-value)))
     env))
 
+(defn start [node-path time]
+  (fn [_ env]
+    (let [node (get-in env node-path)]
+      (when (exists? (.-start node)) (.start node time)))
+    env))
+
+(defn stop [node-path time]
+  (fn [_ env]
+    (let [node (get-in env node-path)]
+      (when (exists? (.-stop node)) (.stop node time)))
+    env))
+
 (defn schedule [node-path param command args]
   (fn [_ env]
     (let [js-parameter-name (symb->name param)
@@ -63,7 +74,7 @@
    (fn [ctx env]
      (let [from-node (get-in env from-path)
            to-node (if (= to-path [:ctx]) (.-destination ctx)
-                                                (get-in env to-path))]
+                                          (get-in env to-path))]
        (if (nil? to-node) (.disconnect from-node) (.disconnect from-node to-node)))
      env)))
 
@@ -85,6 +96,8 @@
                                   :disconnect        5
                                   :remove-node       6
                                   :schedule          7
+                                  :start             8
+                                  :stop              9
                                   }))) updates)))
 
 (defn update->side-fx [update]
@@ -95,6 +108,9 @@
          [[:connect-parameter from-path to-path parameter-name]] (connect-parameter from-path to-path parameter-name)
          [[:disconnect from-path to-path]] (disconnect from-path to-path)
          [[:remove-node node-path]] (remove-node node-path)
-         [[:schedule node-path param command args]] (schedule node-path param command args)))
+         [[:schedule node-path param command args]] (schedule node-path param command args)
+         [[:start path time]] (start path time)
+         [[:stop path time]] (stop path time)
+         ))
 
 (defn eval-updates [ctx env updates] (reduce (fn [env update] ((update->side-fx update) ctx env)) env (sort-updates-by-priority updates)))

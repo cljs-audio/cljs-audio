@@ -166,6 +166,10 @@
          [[[_ :connections & r] :+ v]] [:add-connection path]
          [[[_ :connections & r] :- v]] [:remove-connection path]
          ;; parameters
+         [[[:start :parameters & r] :r v]] [:start path]
+         [[[:start :parameters & r] :+ v]] [:start path]
+         [[[:stop :parameters & r] :r v]] [:stop path]
+         [[[:stop :parameters & r] :+ v]] [:stop path]
          [[[_ :parameters & r] :r v]] [:replace-parameter path]
          [[[_ _ :parameters & r] :r v]] [:replace-parameter (drop-last 1 path)]
          [[[_ _ _ :parameters & r] :r v]] [:replace-parameter (drop-last 2 path)]
@@ -176,7 +180,7 @@
          [[[:group & r] :+ v]] [:replace-group path]
          [[[_ :group & r] :r v]] [:replace-node path]
          [[[_ :group & r] :+ v]] [:add-node path]
-         [[[:create-args id & r] :r v]] [:recreate-node path]
+         [[[:create-args id & r] :r v]] [:recreate-node path] ;; TODO:!!!
          ;[[[_ :group :patch & r] :- v]] [ path]
          ;; group
 
@@ -256,6 +260,17 @@
       (cond
         (:type node) (add-node path new-patch)
         :else (add-group (into path [:group]) new-patch)))))
+
+(defmethod update->commands :start [[_ path] _ new-patch]
+  (let [value (get-in new-patch path)
+        node-path (vec (drop-last 2 path))]
+    (into (add-node node-path new-patch)
+          [[:start node-path value]])))
+
+(defmethod update->commands :stop [[_ path] _ new-patch]
+  (let [value (get-in new-patch path)
+        node-path (vec (drop-last 2 path))]
+    [[:stop node-path value]]))
 
 (defn ->node-ast [[type parameters create-args]] {:type type :parameters parameters :create-args create-args})
 
