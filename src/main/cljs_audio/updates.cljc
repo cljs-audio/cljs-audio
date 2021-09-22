@@ -55,11 +55,14 @@
   [:schedule path name command (vec args)])
 
 (defn set-parameter [path name value]
-  (if (vector? value)
-    (if (vector? (first value))
-      (into [] (mapv (fn [value] (schedule path name value)) value))
-      [(schedule path name (vec value))])
-    [[:set path name value]]))
+  (case name
+    :start [[:start path value]]
+    :stop [[:stop path value]]
+    (if (vector? value)
+      (if (vector? (first value))
+        (into [] (mapv (fn [value] (schedule path name value)) value))
+        [(schedule path name (vec value))])
+      [[:set path name value]])))
 
 (defn make-set-params [path params]
   (into [] (mapcat (fn [[name value]] (set-parameter path name value)) (vec params))))
@@ -111,9 +114,6 @@
                 (make-set-params path parameters))
           (let [node-connections-paths (find-node-connections path patch)]
             (vec (mapcat (fn [path] (make-connect path patch)) node-connections-paths))))))
-
-(defn replace-input-id [id] [[:replace-input-id id]])
-(defn replace-output-id [id] [[:replace-output-id id]])
 
 (defn make-remove-node [path]
   [[:disconnect path]

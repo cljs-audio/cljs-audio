@@ -4,10 +4,16 @@
 (defn at-start [v] [:set-value-at-time v 0])
 
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
-  [{:delay [:delay {:delay-time time} [5]]
+  [{:delay [:delay {:delay-time time} [10]]
     :vca   [:gain {:gain gain}]}
    #{[:> :delay]
      [:delay :vca]
+     [:vca :>]}])
+
+(defn one-shot-sample [{:keys [buffer start-time rate gain] :or {buffer nil start-time nil rate 1 gain 1}}]
+  [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when start-time {:start start-time}))]
+    :vca    [:gain {:gain gain}]}
+   #{[:player :vca]
      [:vca :>]}])
 
 (defn multi-tap-delay [{:keys [dry times gains] :or {dry   1
@@ -24,11 +30,12 @@
                    [:dry :>]} (mapv (fn [key] [:> key]) delay-keys))
            (mapv (fn [key] [key :>]) delay-keys))]))
 
-(defn simple-voice [{:keys [frequency detune type gain]
-                     :or   {frequency 220 detune 0 type "triangle" gain 1}}]
+(defn simple-voice [{:keys [frequency detune type gain start-time]
+                     :or   {frequency 220 detune 0 type "triangle" gain 1 start-time 0}}]
   [{:osc [:oscillator {:frequency frequency
                        :detune    detune
-                       :type      type} [1 2]]
+                       :type      type
+                       :start start-time}]
     :vca [:gain {:gain gain}]}
    #{[:osc :vca]
      [:vca :>]}])
