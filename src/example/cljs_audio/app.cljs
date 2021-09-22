@@ -34,6 +34,10 @@
        [:comp :>]
        }]))
 
+(defonce worker (new js/Worker "worker.js"))
+(set! (.-onmessage worker (fn [{:keys [data]}]
+                            (println (str "Time: " data)))))
+
 (def audio (atom nil))
 
 (def events ["touchstart" "touchend" "mousedown" "keydown"])
