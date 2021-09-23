@@ -172,7 +172,11 @@
          [[[_ _ :parameters & r] :r v]] [:replace-parameter (drop-last 1 path)]
          [[[_ _ _ :parameters & r] :r v]] [:replace-parameter (drop-last 2 path)]
          [[[_ :parameters & r] :+ v]] [:set-parameter path]
+         [[[_ _ :parameters & r] :+ v]] [:set-parameter (drop-last 1 path)]
+         [[[_ _ _ :parameters & r] :+ v]] [:set-parameter (drop-last 2 path)]
          [[[_ :parameters & r] :- v]] [:no-op]
+         [[[_ _ :parameters & r] :- v]] [:no-op]
+         [[[_ _ _ :parameters & r] :- v]] [:no-op]
          ;; nodes
          [[[:group & r] :r v]] [:replace-group path]
          [[[:group & r] :+ v]] [:replace-group path]
@@ -226,7 +230,7 @@
 (defmethod update->commands :set-parameter [[_ path] _ new-patch]
   (let [value (get-in new-patch path)
         parameter-name (last path)
-        node-path (vec (drop-last 3 path))]
+        node-path (vec (drop-last 2 path))]
     (set-parameter node-path parameter-name value)))
 
 (defmethod update->commands :replace-parameter [[_ path] _ new-patch]
@@ -269,6 +273,8 @@
   (let [value (get-in new-patch path)
         node-path (vec (drop-last 2 path))]
     [[:stop node-path value]]))
+
+(defmethod update->commands :no-op [] [])
 
 (defn ->node-ast [[type parameters create-args]] {:type type :parameters parameters :create-args create-args})
 
