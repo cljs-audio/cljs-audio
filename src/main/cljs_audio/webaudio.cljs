@@ -9,7 +9,7 @@
   (let [polyfill (js->clj polyfill)
         clazz (get polyfill "AudioContext" js/AudioContext)
         ctx (new clazz)]
-    {:ctx ctx :patch [{} #{}] :env {} :stream stream :polyfill polyfill}))
+    {:ctx ctx :patch [{} #{}] :env {} :polyfill polyfill :stream stream}))
 
 (defn update-audio [{:keys [ctx patch env polyfill stream]} new-patch]
   (println :polyfill polyfill)
