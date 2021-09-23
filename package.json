@@ -10,7 +10,7 @@
     "test:browser": "shadow-cljs watch browser-test",
     "test": "shadow-cljs compile node-test && node out/node-tests.js",
     "build:example": "rm -rf release && mkdir release && cp public/index.html release && cp -r public/resources release/resources && npx shadow-cljs release build-example",
-    "publish": "clj -M:release"
+    "release": "clj -M:release"
   },
   "dependencies": {
     "standardized-audio-context": "^25.3.6"
