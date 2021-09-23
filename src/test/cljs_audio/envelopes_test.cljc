@@ -12,6 +12,5 @@
                                  [:exponential-ramp-to-value-at-time 1.0001 1]
                                  [:exponential-ramp-to-value-at-time 3.0003 3]
                                  [:exponential-ramp-to-value-at-time 3.0003 8]
-                                 [:exponential-ramp-to-value-at-time 1.0E-4 12]
-                                 [:set-target-at-time 0 12 1.0E-4]]))))
+                                 [:exponential-ramp-to-value-at-time 1.0E-4 12]]))))
 
