@@ -7,11 +7,14 @@
     [cljs-audio.utils :refer [symb->name derefable?]]))
 
 (defn create-node [node-path type create-args]
-  (fn [ctx env]
-    (let [node (oapply+
-                 ctx
-                 (str "create"
-                      (key->js (->PascalCaseKeyword type))) create-args)]
+  (fn [ctx env polyfill]
+    (let [node (if (= type :audio-worklet)
+                 (let [clazz (get polyfill "AudioWorkletNode" js/AudioWorkletNode)]
+                   (new clazz ctx (first create-args)))
+                 (oapply+
+                   ctx
+                   (str "create"
+                        (key->js (->PascalCaseKeyword type))) create-args))]
       (assoc-in env
                 node-path
                 node))))
@@ -121,4 +124,4 @@
          [[:stop path time]] (stop path time)
          ))
 
-(defn eval-updates [ctx env updates] (reduce (fn [env update] ((update->side-fx update) ctx env)) env (sort-updates-by-priority updates)))
+(defn eval-updates [ctx env polyfill updates] (reduce (fn [env update] ((update->side-fx update) ctx env polyfill)) env (sort-updates-by-priority updates)))
