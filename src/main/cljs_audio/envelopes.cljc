@@ -18,7 +18,7 @@
            [:exponential-ramp-to-value-at-time (* s value) (+ time a d)]
            [:exponential-ramp-to-value-at-time (* s value) (+ time a d s-length)]
            [:exponential-ramp-to-value-at-time 0.0001 (+ time a d s-length r)]
-           [:set-target-at-time 0 (+ time a d s-length r) 0.0001]])))
+           ])))
 
 (defn adsr! [a d s r s-length value time]
   "Cancels all scheduled values and schedules ADSR envelope."
