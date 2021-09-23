@@ -1,6 +1,15 @@
 (ns cljs-audio.modules
   (:require [cljs-audio.envelopes :refer [adsr! adsr]]))
 
+(defn poly [synth params-v]
+  (let [synths
+        (into {} (map-indexed (fn [index params]
+                                [(keyword (str index)) (synth params)]
+                                ) params-v))
+        connections (into #{} (mapv (fn [key] [key :>]) (keys synths)))]
+    [synths
+     connections]))
+
 (defn at-start [v] [:set-value-at-time v 0])
 
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
