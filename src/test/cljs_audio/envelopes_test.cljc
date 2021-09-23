@@ -4,13 +4,14 @@
 
 (deftest envelopes-test
   (testing "at-time"
-    (is (= (at-time 1 0) [[:set-target-at-time 1 0 0.001]])))
+    (is (= (at-time 1 0) [[:set-target-at-time 1 0 1.0E-4]])))
   (testing "cancel-at-time!"
     (is (= (cancel-at-time! 1) [[:cancel-scheduled-values 1]])))
-  (testing "cancel-at-time!"
-    (is (= (adsr 1 2 3 4 5 1 0) [[:set-target-at-time 0 0 0.001]
-                                 [:exponential-ramp-to-value-at-time 1.001 1]
-                                 [:exponential-ramp-to-value-at-time 3.0029999999999997 3]
-                                 [:exponential-ramp-to-value-at-time 3.0029999999999997 8]
-                                 [:exponential-ramp-to-value-at-time 0.001 12]]))))
+  (testing "adsr"
+    (is (= (adsr 1 2 3 4 5 1 0) [[:set-target-at-time 0 0 1.0E-4]
+                                 [:exponential-ramp-to-value-at-time 1.0001 1]
+                                 [:exponential-ramp-to-value-at-time 3.0003 3]
+                                 [:exponential-ramp-to-value-at-time 3.0003 8]
+                                 [:exponential-ramp-to-value-at-time 1.0E-4 12]
+                                 [:set-target-at-time 0 12 1.0E-4]]))))
 
