@@ -2,7 +2,6 @@
   (:require [editscript.core :as e]
             [cljs.core.match :refer [match]]))
 
-
 (defn path-type [path patch]
   (case path
     [:group :cljs-audio.updates/out] :top
@@ -295,8 +294,25 @@
 (defn cleanup-meaningless-ops [[name a1 a2]]
   (not (and (= name :connect) (or (= a1 []) (= a2 [])))))
 
+(defn sort-updates-by-priority [updates]
+  (vec (sort-by (fn [thing]
+                  (let [[update-name] thing]
+                    (update-name
+                      (into {} (map-indexed
+                                 (fn [ndx command] [command ndx])
+                                 [:stop
+                                  :disconnect
+                                  :remove-node
+                                  :add-node
+                                  :set
+                                  :connect
+                                  :connect-parameter
+                                  :start
+                                  :schedule])))))
+                updates)))
+
 (defn patches->commands [old new]
   (let [a (->patch-ast old)
         b (->patch-ast new)
         updates (make-updates a b)]
-    (into [] (filter cleanup-meaningless-ops (distinct (mapcat #(update->commands % a b) updates))))))
+    (sort-updates-by-priority (into [] (filter cleanup-meaningless-ops (distinct (mapcat #(update->commands % a b) updates)))))))
