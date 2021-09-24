@@ -3,15 +3,21 @@
             }
  :builds   {:example
                            {:target           :browser
-                            :modules          {
-                                               :main   {:init-fn cljs-audio.app/main
-                                                        }
-                                               :worker {:init-fn cljs-audio.updates-worker/worker
+                            :modules          {:shared {:entries []}
+                                               :main   {:init-fn    cljs-audio.app/main
+                                                        :depends-on #{:shared}}
+                                               :worker {:init-fn    cljs-audio.updates-worker/worker
+                                                        :depends-on #{:shared}
                                                         :web-worker true}}
                             :release          {:js-options {:minimize-require true}}
                             :compiler-options {:infer-externs :auto}}
             :build-example {:target     :browser
-                            :modules    {:main {:init-fn cljs-audio.app/main}}
+                            :modules    {:shared {:entries []}
+                                         :main   {:init-fn    cljs-audio.app/main
+                                                  :depends-on #{:shared}}
+                                         :worker {:init-fn    cljs-audio.updates-worker/worker
+                                                  :depends-on #{:shared}
+                                                  :web-worker true}}
                             :release    {:js-options {:minimize-require true}}
                             :output-dir "release/js"}
             :node-test     {:target    :node-test
