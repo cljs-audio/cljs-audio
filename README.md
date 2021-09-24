@@ -3,9 +3,7 @@
 
 Convenient Web Audio for ClojureScript 
 
-```[com.awayfrompeople/cljs-audio "0.3.0"]```
-
-```com.awayfrompeople/cljs-audio {:mvn/version "0.3.0"}```
+[![Clojars Project](https://img.shields.io/clojars/v/com.awayfrompeople/cljs-audio.svg)](https://clojars.org/com.awayfrompeople/cljs-audio)
 
 ## Code Example
 
