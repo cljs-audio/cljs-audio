@@ -19,10 +19,10 @@
                                      :gain      gain
                                      :type      "sawtooth"})
       :sampled-kick (m/poly m/one-shot-sample
-                            [{:buffer kick :start-time time :gain gain :rate 0.7}
-                             {:buffer kick :start-time (+ time (t/seconds bpm "1/4")) :gain gain :rate 0.7}
-                             {:buffer kick :start-time (+ time (t/seconds bpm "2/4")) :gain gain :rate 0.7}
-                             {:buffer kick :start-time (+ time (t/seconds bpm "3/4")) :gain gain :rate 0.7}])
+                            [{:buffer :kick :start-time time :gain gain :rate 0.7}
+                             {:buffer :kick :start-time (+ time (t/seconds bpm "1/4")) :gain gain :rate 0.7}
+                             {:buffer :kick :start-time (+ time (t/seconds bpm "2/4")) :gain gain :rate 0.7}
+                             {:buffer :kick :start-time (+ time (t/seconds bpm "3/4")) :gain gain :rate 0.7}])
       ;:voice2 (m/simple-voice {:frequency frequency
       ;                         :detune    -4
       ;                         :gain      gain
@@ -55,25 +55,35 @@
 (defn resume-audio-context []
   (let [audio (atom (wa/make-audio {:polyfill sac}))]
     (take! (wa/resume @audio)
-             (fn []
-               (go
-                 (let [ir-audio-data (<! (wa/fetch-sample @audio "resources/ir.wav"))
-                       kick-audio-data (<! (wa/fetch-sample @audio "resources/kick.wav"))
-                       bpm 120]
-                   (try
-                     (doseq [ev events] (.removeEventListener js/document.body ev resume-audio-context))
-                     (js/document.body.addEventListener "mousedown"
-                                                        (fn [e]
-                                                          (.preventDefault e)
-                                                          (swap! audio wa/update-audio (graph {:kick kick-audio-data :freq (/ (.-offsetY e) 10) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm}))))
-                     (js/document.body.addEventListener "touchstart"
-                                                        (fn [e]
-                                                          (.preventDefault e)
-                                                          (let [touch (.item (.-changedTouches e) 0)]
-                                                            (when (not (nil? touch))
-                                                              (swap! audio wa/update-audio (graph {:kick kick-audio-data :freq (/ (.-pageY touch) 5) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm}))))
-                                                          ))
-                     (catch js/Error err (js/console.log (ex-cause err))))))))))
+           (fn []
+             (go
+               (let [ir-audio-data (<! (wa/fetch-sample @audio "resources/ir.wav"))
+                     kick-audio-data (<! (wa/fetch-sample @audio "resources/kick.wav"))
+                     bpm 120]
+                 (try
+                   (doseq [ev events] (.removeEventListener js/document.body ev resume-audio-context))
+                   (js/document.body.addEventListener "mousedown"
+                                                      (fn [e]
+                                                        (.preventDefault e)
+                                                        (go
+                                                          (let [val (<! (wa/update-audio (into @audio
+                                                                                               {:buffers {:ir   ir-audio-data
+                                                                                                          :kick kick-audio-data}})
+                                                                                         (graph {:kick kick-audio-data :freq (/ (.-offsetY e) 10) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm})
+                                                                                         ))]
+
+                                                            (reset! audio val)))))
+                   (js/document.body.addEventListener "touchstart"
+                                                      (fn [e]
+                                                        (.preventDefault e)
+                                                        (let [touch (.item (.-changedTouches e) 0)]
+                                                          (when (not (nil? touch))
+                                                            (take!
+                                                              (wa/update-audio (into @audio {:buffers {:ir   ir-audio-data
+                                                                                                       :kick kick-audio-data}}) (graph {:kick kick-audio-data :freq (/ (.-pageY touch) 5) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm})
+                                                                               )
+                                                              #(reset! audio %))))))
+                   (catch js/Error err (js/console.log (ex-cause err))))))))))
 
 (defn main []
   (doseq [ev events] (js/document.body.addEventListener ev resume-audio-context false)))

@@ -6,7 +6,6 @@
     [cljs-audio.envelopes :refer [adsr! at-time!]]
     [cljs-audio.modules :as m]
     [cljs-audio.test-utils :as tu]
-    [cljs-audio.webaudio-interpreter :refer [sort-updates-by-priority]]
     [cljs-audio.updates :as u :refer [path-type resolve-to resolve-from patches->commands ->patch-ast make-updates edit->update update->commands]]))
 
 (def context #js {:createOscillator (fn [] #js {:connect   (fn [] nil)
@@ -38,16 +37,17 @@
                                    #{[:fx :>]
                                      [:osc :fx]}]])
            [[:add-node [:group :fx :group :cljs-audio.updates/in] :gain []]
-            [:connect [:group :fx :group :cljs-audio.updates/in] [:group :fx :group :delay]]
             [:add-node [:group :fx :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :fx :group :vca] [:group :fx :group :cljs-audio.updates/out]]
             [:add-node [:group :fx :group :delay] :delay [10]]
-            [:set [:group :fx :group :delay] :delay-time 0.5]
-            [:connect [:group :fx :group :delay] [:group :fx :group :vca]]
             [:add-node [:group :fx :group :vca] :gain []]
+            [:set [:group :fx :group :delay] :delay-time 0.5]
             [:set [:group :fx :group :vca] :gain 1]
+            [:connect [:group :fx :group :cljs-audio.updates/in] [:group :fx :group :delay]]
+            [:connect [:group :fx :group :vca] [:group :fx :group :cljs-audio.updates/out]]
+            [:connect [:group :fx :group :delay] [:group :fx :group :vca]]
             [:connect [:group :osc] [:group :fx :group :cljs-audio.updates/in]]
-            [:connect [:group :fx :group :cljs-audio.updates/out] [:ctx]]])))
+            [:connect [:group :fx :group :cljs-audio.updates/out] [:ctx]]]
+           )))
   (testing "add a node with param"
     (is (= (run-update->commands [[{:osc [:oscillator {} [1 2]]}
                                    {:osc :vca}]
@@ -68,10 +68,10 @@
                                      [:vca :>]}]])
            [[:add-node [:group :vca :group :cljs-audio.updates/in] :gain []]
             [:add-node [:group :vca :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :vca :group :io] [:group :vca :group :cljs-audio.updates/out]]
             [:add-node [:group :vca :group :io] :gain []]
             [:set [:group :vca :group :io] :gain 1]
-            ])))
+            [:connect [:group :vca :group :io] [:group :vca :group :cljs-audio.updates/out]]]
+           )))
   (testing "add simple synth"
     (is (= (run-update->commands [empty-patch vca-instance])
            [[:add-node [:group :io] :gain []]
@@ -81,31 +81,31 @@
   (testing "remove simple synth"
     (is (= (run-update->commands [vca-instance empty-patch])
            [[:disconnect [:group :io]]
-            [:remove-node [:group :io]]
             [:disconnect nil [:group :io]]
-            [:disconnect [:group :io] [:ctx]]])))
+            [:disconnect [:group :io] [:ctx]]
+            [:remove-node [:group :io]]])))
   (testing "change simple synth parameter"
     (is (= (run-update->commands [vca-instance (m/vca {:gain 0.1})])
            [[:set [:group :io] :gain 0.1]])))
   (testing "add compound synth"
     (is (= (run-update->commands [empty-patch simple-voice-instance])
            [[:add-node [:group :osc] :oscillator []]
+            [:add-node [:group :vca] :gain []]
             [:set [:group :osc] :frequency 220]
             [:set [:group :osc] :detune 0]
             [:set [:group :osc] :type "triangle"]
-            [:start [:group :osc] 0]
-            [:connect [:group :osc] [:group :vca]]
-            [:add-node [:group :vca] :gain []]
             [:set [:group :vca] :gain 1]
-            [:connect [:group :vca] [:ctx]]])))
+            [:connect [:group :osc] [:group :vca]]
+            [:connect [:group :vca] [:ctx]]
+            [:start [:group :osc] 0]])))
   (testing "remove compound synth"
     (is (= (run-update->commands [simple-voice-instance empty-patch])
            [[:disconnect [:group :osc]]
-            [:remove-node [:group :osc]]
             [:disconnect [:group :vca]]
-            [:remove-node [:group :vca]]
             [:disconnect [:group :osc] [:group :vca]]
-            [:disconnect [:group :vca] [:ctx]]])))
+            [:disconnect [:group :vca] [:ctx]]
+            [:remove-node [:group :osc]]
+            [:remove-node [:group :vca]]])))
   (testing "change compound synth parameter"
     (is (= (run-update->commands [simple-voice-instance (m/simple-voice {:frequency 110 :detune 10})])
            [[:set [:group :osc] :frequency 110]
@@ -114,63 +114,64 @@
     (is (= (run-update->commands [empty-patch delayed-waveforms-instance])
            [[:add-node [:group :oscs :group :cljs-audio.updates/in] :gain []]
             [:add-node [:group :oscs :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :oscs :group :vca :group :cljs-audio.updates/out] [:group :oscs :group :cljs-audio.updates/out]]
             [:add-node [:group :oscs :group :1] :oscillator []]
+            [:add-node [:group :oscs :group :2] :oscillator []]
+            [:add-node [:group :oscs :group :3] :oscillator []]
+            [:add-node [:group :oscs :group :mix] :gain []]
+            [:add-node [:group :oscs :group :vca :group :cljs-audio.updates/in] :gain []]
+            [:add-node [:group :oscs :group :vca :group :cljs-audio.updates/out] :gain []]
+            [:add-node [:group :oscs :group :vca :group :io] :gain []]
+            [:add-node [:group :fx :group :cljs-audio.updates/in] :gain []]
+            [:add-node [:group :fx :group :cljs-audio.updates/out] :gain []]
+            [:add-node [:group :fx :group :io] :delay [5]]
             [:set [:group :oscs :group :1] :frequency 220]
             [:set [:group :oscs :group :1] :type "sine"]
-            [:connect [:group :oscs :group :1] [:group :oscs :group :mix]]
-            [:add-node [:group :oscs :group :2] :oscillator []]
             [:set [:group :oscs :group :2] :frequency 220]
             [:set [:group :oscs :group :2] :type "triangle"]
-            [:connect [:group :oscs :group :2] [:group :oscs :group :mix]]
-            [:add-node [:group :oscs :group :3] :oscillator []]
             [:set [:group :oscs :group :3] :frequency 220]
             [:set [:group :oscs :group :3] :type "square"]
-            [:connect [:group :oscs :group :3] [:group :oscs :group :mix]]
-            [:add-node [:group :oscs :group :mix] :gain []]
-            [:connect [:group :oscs :group :mix] [:group :oscs :group :vca :group :cljs-audio.updates/in]]
-            [:add-node [:group :oscs :group :vca :group :cljs-audio.updates/in] :gain []]
-            [:connect [:group :oscs :group :vca :group :cljs-audio.updates/in] [:group :oscs :group :vca :group :io]]
-            [:add-node [:group :oscs :group :vca :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :oscs :group :vca :group :io] [:group :oscs :group :vca :group :cljs-audio.updates/out]]
-            [:add-node [:group :oscs :group :vca :group :io] :gain []]
             [:set [:group :oscs :group :vca :group :io] :gain 0.5]
-            [:add-node [:group :fx :group :cljs-audio.updates/in] :gain []]
-            [:connect [:group :fx :group :cljs-audio.updates/in] [:group :fx :group :io]]
-            [:add-node [:group :fx :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :fx :group :io] [:group :fx :group :cljs-audio.updates/out]]
-            [:add-node [:group :fx :group :io] :delay [5]]
             [:set [:group :fx :group :io] :time 0.5]
+            [:connect [:group :oscs :group :vca :group :cljs-audio.updates/out] [:group :oscs :group :cljs-audio.updates/out]]
+            [:connect [:group :oscs :group :1] [:group :oscs :group :mix]]
+            [:connect [:group :oscs :group :2] [:group :oscs :group :mix]]
+            [:connect [:group :oscs :group :3] [:group :oscs :group :mix]]
+            [:connect [:group :oscs :group :mix] [:group :oscs :group :vca :group :cljs-audio.updates/in]]
+            [:connect [:group :oscs :group :vca :group :cljs-audio.updates/in] [:group :oscs :group :vca :group :io]]
+            [:connect [:group :oscs :group :vca :group :io] [:group :oscs :group :vca :group :cljs-audio.updates/out]]
+            [:connect [:group :fx :group :cljs-audio.updates/in] [:group :fx :group :io]]
+            [:connect [:group :fx :group :io] [:group :fx :group :cljs-audio.updates/out]]
             [:connect [:group :fx :group :cljs-audio.updates/out] [:ctx]]
-            [:connect [:group :oscs :group :cljs-audio.updates/out] [:group :fx :group :cljs-audio.updates/in]]])))
+            [:connect [:group :oscs :group :cljs-audio.updates/out] [:group :fx :group :cljs-audio.updates/in]]]
+           )))
   (testing "remove complex synth"
     (is (= (run-update->commands [delayed-waveforms-instance empty-patch])
            [[:disconnect [:group :oscs :group :cljs-audio.updates/in]]
-            [:remove-node [:group :oscs :group :cljs-audio.updates/in]]
             [:disconnect [:group :oscs :group :cljs-audio.updates/out]]
-            [:remove-node [:group :oscs :group :cljs-audio.updates/out]]
             [:disconnect [:group :oscs :group :1]]
-            [:remove-node [:group :oscs :group :1]]
             [:disconnect [:group :oscs :group :2]]
-            [:remove-node [:group :oscs :group :2]]
             [:disconnect [:group :oscs :group :3]]
-            [:remove-node [:group :oscs :group :3]]
             [:disconnect [:group :oscs :group :mix]]
-            [:remove-node [:group :oscs :group :mix]]
             [:disconnect [:group :oscs :group :vca :group :cljs-audio.updates/in]]
-            [:remove-node [:group :oscs :group :vca :group :cljs-audio.updates/in]]
             [:disconnect [:group :oscs :group :vca :group :cljs-audio.updates/out]]
-            [:remove-node [:group :oscs :group :vca :group :cljs-audio.updates/out]]
             [:disconnect [:group :oscs :group :vca :group :io]]
-            [:remove-node [:group :oscs :group :vca :group :io]]
             [:disconnect [:group :fx :group :cljs-audio.updates/in]]
-            [:remove-node [:group :fx :group :cljs-audio.updates/in]]
             [:disconnect [:group :fx :group :cljs-audio.updates/out]]
-            [:remove-node [:group :fx :group :cljs-audio.updates/out]]
             [:disconnect [:group :fx :group :io]]
-            [:remove-node [:group :fx :group :io]]
             [:disconnect [:group :fx :group :cljs-audio.updates/out] [:ctx]]
-            [:disconnect [:group :oscs :group :cljs-audio.updates/out] [:group :fx :group :cljs-audio.updates/in]]]
+            [:disconnect [:group :oscs :group :cljs-audio.updates/out] [:group :fx :group :cljs-audio.updates/in]]
+            [:remove-node [:group :oscs :group :cljs-audio.updates/in]]
+            [:remove-node [:group :oscs :group :cljs-audio.updates/out]]
+            [:remove-node [:group :oscs :group :1]]
+            [:remove-node [:group :oscs :group :2]]
+            [:remove-node [:group :oscs :group :3]]
+            [:remove-node [:group :oscs :group :mix]]
+            [:remove-node [:group :oscs :group :vca :group :cljs-audio.updates/in]]
+            [:remove-node [:group :oscs :group :vca :group :cljs-audio.updates/out]]
+            [:remove-node [:group :oscs :group :vca :group :io]]
+            [:remove-node [:group :fx :group :cljs-audio.updates/in]]
+            [:remove-node [:group :fx :group :cljs-audio.updates/out]]
+            [:remove-node [:group :fx :group :io]]]
            )))
   (testing "change complex synth parameters"
     (is (= (run-update->commands [delayed-waveforms-instance (tu/delayed-waveforms {:frequency 880 :time 3 :gain 0.5})])
@@ -188,24 +189,24 @@
                                                  [:vca3 :>]}]])
            [[:add-node [:group :waveforms :group :cljs-audio.updates/in] :gain []]
             [:add-node [:group :waveforms :group :cljs-audio.updates/out] :gain []]
-            [:connect [:group :waveforms :group :vca] [:group :waveforms :group :cljs-audio.updates/out]]
             [:add-node [:group :waveforms :group :osc] :oscillator []]
+            [:add-node [:group :waveforms :group :vca] :gain []]
+            [:add-node [:group :osc] :oscillator [1 2]]
+            [:add-node [:group :vca3] :gain []]
             [:set [:group :waveforms :group :osc] :frequency 666]
             [:set [:group :waveforms :group :osc] :detune 0]
             [:set [:group :waveforms :group :osc] :type "triangle"]
-            [:start [:group :waveforms :group :osc] 0]
-            [:connect [:group :waveforms :group :osc] [:group :waveforms :group :vca]]
-            [:add-node [:group :waveforms :group :vca] :gain []]
             [:set [:group :waveforms :group :vca] :gain 1]
-            [:add-node [:group :osc] :oscillator [1 2]]
             [:set [:group :osc] :frequency 220]
             [:set [:group :osc] :detune 1]
             [:set [:group :osc] :type "triangle"]
-            [:connect [:group :osc] [:group :waveforms :group :cljs-audio.updates/in]]
-            [:add-node [:group :vca3] :gain []]
             [:set [:group :vca3] :gain 0.5]
+            [:connect [:group :waveforms :group :vca] [:group :waveforms :group :cljs-audio.updates/out]]
+            [:connect [:group :waveforms :group :osc] [:group :waveforms :group :vca]]
+            [:connect [:group :osc] [:group :waveforms :group :cljs-audio.updates/in]]
             [:connect [:group :vca3] [:ctx]]
-            [:connect [:group :waveforms :group :cljs-audio.updates/out] [:group :vca3]]]
+            [:connect [:group :waveforms :group :cljs-audio.updates/out] [:group :vca3]]
+            [:start [:group :waveforms :group :osc] 0]]
            ))))
 
 (def add-connection-simple
@@ -562,6 +563,3 @@
        [:reverb :>]
        [:comp :>]
        }]))
-
-(sort-updates-by-priority
-  (run-update->commands [empty-patch (top-level)]))
