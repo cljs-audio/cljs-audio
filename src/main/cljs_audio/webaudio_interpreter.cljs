@@ -38,10 +38,13 @@
       env)))
 
 (defn set-parameter [node-path parameter-name parameter-value]
-  (fn [_ env]
+  (fn [_ env buffers]
     (let [js-parameter-name (symb->name parameter-name)
           node (get-in env node-path)
-          param (oget+ node js-parameter-name)]
+          param (oget+ node js-parameter-name)
+          parameter-value (if (= parameter-name :buffer)
+                            (get buffers parameter-value)
+                            parameter-value)]
       (if (nil? param)
         ;; handle primitive param case
         (oset!+
@@ -93,23 +96,6 @@
              (catch js/Error err (js/console.log (ex-cause err))))))
     (dissoc-in env node-path)))
 
-(defn sort-updates-by-priority [updates]
-  (vec (sort-by (fn [thing]
-                  (let [[update-name] thing]
-                    (update-name
-                      (into {} (map-indexed
-                                 (fn [ndx command] [command ndx])
-                                 [:stop
-                                  :disconnect
-                                  :remove-node
-                                  :add-node
-                                  :set
-                                  :connect
-                                  :connect-parameter
-                                  :start
-                                  :schedule])))))
-                updates)))
-
 (defn update->side-fx [update]
   (match [update]
          [[:add-node node-path type create-args]] (create-node node-path type create-args)
@@ -124,4 +110,4 @@
          [[:stop path time]] (stop path time)
          ))
 
-(defn eval-updates [ctx env polyfill updates] (reduce (fn [env update] ((update->side-fx update) ctx env polyfill)) env (sort-updates-by-priority updates)))
+(defn eval-updates [ctx env polyfill buffers updates] (reduce (fn [env update] ((update->side-fx update) ctx env polyfill buffers)) env updates))

@@ -3,7 +3,11 @@
             }
  :builds   {:example
                            {:target           :browser
-                            :modules          {:main {:init-fn cljs-audio.app/main}}
+                            :modules          {
+                                               :main   {:init-fn cljs-audio.app/main
+                                                        }
+                                               :worker {:init-fn cljs-audio.updates-worker/worker
+                                                        :web-worker true}}
                             :release          {:js-options {:minimize-require true}}
                             :compiler-options {:infer-externs :auto}}
             :build-example {:target     :browser
