@@ -56,41 +56,28 @@
 
 (defn- handle-response!
   [event]
-  (-> (.-data event)
-      (#(t/read r %))))
+  (->> (.-data event)
+       (t/read r)))
 
 (defn do-with-worker!
   [worker {:keys [handler arguments transfer] :as request}]
-  (let [result
-        (promise-chan)
-
-        put-result!
-        (partial put! result)]
-
+  (let [result (promise-chan)
+        put-result! (partial put! result)]
     (->> (comp put-result! handle-response!)
          (aset worker "onmessage"))
-
     (try
       (do-request! worker request)
       (catch js/Object e
         (put! result {:state :error, :error e})))
-
     result))
 
 (defn do-with-pool!
   [pool {:keys [handler arguments transfer] :as request}]
   (let [result* (promise-chan)]
     (go
-      (let [worker
-            (<! pool)
-
-            result-chan
-            (do-with-worker! worker request)
-
-            result
-            (<! result-chan)]
-
+      (let [worker (<! pool)
+            result-chan (do-with-worker! worker request)
+            result (<! result-chan)]
         (>! pool worker)
         (>! result* result)))
-
     result*))

@@ -13,4 +13,3 @@
                                  [:exponential-ramp-to-value-at-time 3.0003 3]
                                  [:exponential-ramp-to-value-at-time 3.0003 8]
                                  [:exponential-ramp-to-value-at-time 1.0E-4 12]]))))
-

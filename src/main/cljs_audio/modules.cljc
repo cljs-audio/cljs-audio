@@ -39,12 +39,12 @@
                    [:dry :>]} (mapv (fn [key] [:> key]) delay-keys))
            (mapv (fn [key] [key :>]) delay-keys))]))
 
-(defn simple-voice [{:keys [frequency detune type gain start-time]
-                     :or   {frequency 220 detune 0 type "triangle" gain 1 start-time 0}}]
+(defn simple-voice [{:keys [frequency detune type gain start]
+                     :or   {frequency 220 detune 0 type "triangle" gain 1 start 0}}]
   [{:osc [:oscillator {:frequency frequency
                        :detune    detune
                        :type      type
-                       :start start-time}]
+                       :start start}]
     :vca [:gain {:gain gain}]}
    #{[:osc :vca]
      [:vca :>]}])

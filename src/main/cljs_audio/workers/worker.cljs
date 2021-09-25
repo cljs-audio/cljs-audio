@@ -48,7 +48,6 @@
           handler (@handlers (:handler decoded-data))
           arguments (:arguments decoded-data)
           result (handler arguments)]
-
       (if (chan? result)
         (go (do-respond! (<! result)))
         (do-respond! result)))

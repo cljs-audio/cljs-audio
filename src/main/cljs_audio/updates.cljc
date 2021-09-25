@@ -155,34 +155,35 @@
 
 (declare ->patch-ast)
 
-(defn edit->update [[path op v]]
-  (match [[(into [] (reverse path)) op v]]
-         ;; connections
-         [[[:connections & r] :r #{}]] [:remove-all-connections path]
-         [[[:connections & r] :r v]] [:replace-all-connections path]
-         [[[_ :connections & r] :+ v]] [:add-connection path]
-         [[[_ :connections & r] :- v]] [:remove-connection path]
-         ;; parameters
-         [[[:start :parameters & r] :r v]] [:start path]
-         [[[:start :parameters & r] :+ v]] [:start path]
-         [[[:stop :parameters & r] :r v]] [:stop path]
-         [[[:stop :parameters & r] :+ v]] [:stop path]
-         [[[_ :parameters & r] :r v]] [:replace-parameter path]
-         [[[_ _ :parameters & r] :r v]] [:replace-parameter (drop-last 1 path)]
-         [[[_ _ _ :parameters & r] :r v]] [:replace-parameter (drop-last 2 path)]
-         [[[_ :parameters & r] :+ v]] [:set-parameter path]
-         [[[_ _ :parameters & r] :+ v]] [:set-parameter (drop-last 1 path)]
-         [[[_ _ _ :parameters & r] :+ v]] [:set-parameter (drop-last 2 path)]
-         [[[_ :parameters & r] :- v]] [:no-op]
-         [[[_ _ :parameters & r] :- v]] [:no-op]
-         [[[_ _ _ :parameters & r] :- v]] [:no-op]
-         ;; nodes
-         [[[:group & r] :r v]] [:replace-group path]
-         [[[:group & r] :+ v]] [:replace-group path]
-         [[[_ :group & r] :r v]] [:replace-node path]
-         [[[_ :group & r] :+ v]] [:add-node path]
-         [[[:create-args id & r] :r v]] [:recreate-node path] ;; TODO:!!!
-         ))
+(defn edit->update [edit]
+  (let [[path op v] edit]
+    (match [[(into [] (reverse path)) op v]]
+           ;; connections
+           [[[:connections & r] :r #{}]] [:remove-all-connections path]
+           [[[:connections & r] :r v]] [:replace-all-connections path]
+           [[[_ :connections & r] :+ v]] [:add-connection path]
+           [[[_ :connections & r] :- v]] [:remove-connection path]
+           ;; parameters
+           [[[:start :parameters & r] :r v]] [:start path]
+           [[[:start :parameters & r] :+ v]] [:start path]
+           [[[:stop :parameters & r] :r v]] [:stop path]
+           [[[:stop :parameters & r] :+ v]] [:stop path]
+           [[[_ :parameters & r] :r v]] [:replace-parameter path]
+           [[[_ _ :parameters & r] :r v]] [:replace-parameter (drop-last 1 path)]
+           [[[_ _ _ :parameters & r] :r v]] [:replace-parameter (drop-last 2 path)]
+           [[[_ :parameters & r] :+ v]] [:set-parameter path]
+           [[[_ _ :parameters & r] :+ v]] [:set-parameter (drop-last 1 path)]
+           [[[_ _ _ :parameters & r] :+ v]] [:set-parameter (drop-last 2 path)]
+           [[[_ :parameters & r] :- v]] [:no-op]
+           [[[_ _ :parameters & r] :- v]] [:no-op]
+           [[[_ _ _ :parameters & r] :- v]] [:no-op]
+           ;; nodes
+           [[[:group & r] :r v]] [:replace-group path]
+           [[[:group & r] :+ v]] [:replace-group path]
+           [[[_ :group & r] :r v]] [:replace-node path]
+           [[[_ :group & r] :+ v]] [:add-node path]
+           [[[:create-args id & r] :r v]] [:recreate-node path] ;; TODO:!!!
+           )))
 
 (defn make-updates [a b]
   (let [edits (e/get-edits (e/diff a b) {:algo :quick})]

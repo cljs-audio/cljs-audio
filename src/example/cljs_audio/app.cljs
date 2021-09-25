@@ -66,22 +66,21 @@
                                                       (fn [e]
                                                         (.preventDefault e)
                                                         (go
-                                                          (let [val (<! (wa/update-audio (into @audio
-                                                                                               {:buffers {:ir   ir-audio-data
+                                                          (let [updates (<! (wa/calculate-updates (into @audio
+                                                                                                    {:buffers {:ir   ir-audio-data
                                                                                                           :kick kick-audio-data}})
-                                                                                         (graph {:kick kick-audio-data :freq (/ (.-offsetY e) 10) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm})
-                                                                                         ))]
-
-                                                            (reset! audio val)))))
-                   (js/document.body.addEventListener "touchstart"
+                                                                                              (graph {:kick kick-audio-data :freq (/ (.-offsetY e) 10) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm})
+                                                                                              ))]
+                                                            (swap! audio wa/apply-updates updates)))))
+                   #_(js/document.body.addEventListener "touchstart"
                                                       (fn [e]
                                                         (.preventDefault e)
                                                         (let [touch (.item (.-changedTouches e) 0)]
                                                           (when (not (nil? touch))
                                                             (take!
-                                                              (wa/update-audio (into @audio {:buffers {:ir   ir-audio-data
-                                                                                                       :kick kick-audio-data}}) (graph {:kick kick-audio-data :freq (/ (.-pageY touch) 5) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm})
-                                                                               )
+                                                              (wa/calculate-updates (into @audio {:buffers {:ir ir-audio-data
+                                                                                                       :kick    kick-audio-data}}) (graph {:kick kick-audio-data :freq (/ (.-pageY touch) 5) :ir ir-audio-data :time (wa/current-time @audio) :bpm bpm})
+                                                                                    )
                                                               #(reset! audio %))))))
                    (catch js/Error err (js/console.log (ex-cause err))))))))))
 
