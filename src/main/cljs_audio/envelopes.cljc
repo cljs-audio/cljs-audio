@@ -4,7 +4,7 @@
   [[:set-target-at-time (+ v 0.0001) time 0.0001]])
 
 (defn cancel-at-time! [time]
-  [[:cancel-scheduled-values time]])
+  [[:cancel-and-hold-at-time time]])
 
 
 

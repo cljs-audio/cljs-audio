@@ -1,7 +1,7 @@
 (ns cljs-audio.webaudio
   (:require
-    [cljs-audio.webaudio-interpreter :refer [eval-updates update->side-fx]]
-    [cljs.core.async :refer [go promise-chan put! <! >!]]
+    [cljs-audio.webaudio-interpreter :refer [eval-updates!]]
+    [cljs.core.async :refer [go promise-chan put! <! >! take!]]
     [cljs.core.async.interop :refer-macros [<p!]]
     [cognitect.transit :as t]
     [cljs-audio.workers.core :as main]
@@ -15,9 +15,13 @@
   (let [polyfill (js->clj polyfill)
         clazz (get polyfill "AudioContext" js/AudioContext)
         ctx (new clazz)]
-    {:ctx     ctx :patch [{} #{}] :env {} :polyfill polyfill
-     :stream  stream :workers (main/create-pool 1 "js/worker.js")
-     :buffers buffers}))
+    {:ctx      ctx
+     :patch    [{} #{}]
+     :env      {}
+     :polyfill (get polyfill "AudioWorkletNode" js/AudioWorkletNode)
+     :stream   stream
+     :workers  (main/create-pool 1 "js/worker.js")
+     :buffers  buffers}))
 
 (defn calculate-updates [{:keys [ctx patch env polyfill stream workers buffers]} new-patch]
   "Generates updated state of cljs-audio instance
@@ -27,10 +31,13 @@
                                :arguments {:old-patch patch
                                            :new-patch new-patch}}))
 
-(defn apply-updates [{:keys [ctx env polyfill buffers workers]} updates]
-  {:env     (eval-updates ctx env polyfill buffers updates)
-   :ctx     ctx :polyfill polyfill
-   :buffers buffers :workers workers})
+(defn apply-updates [{:keys [ctx env polyfill buffers workers patch]} updates]
+  {:env      (eval-updates! ctx env polyfill buffers updates)
+   :ctx      ctx
+   :polyfill polyfill
+   :buffers  buffers
+   :workers  workers
+   :patch    patch})
 
 (defn shift-schedule-time [args delta]
   (if (and (> (count args) 1) (not= 0 (second args)))

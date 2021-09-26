@@ -1,5 +1,5 @@
 (ns cljs-audio.modules
-  (:require [cljs-audio.envelopes :refer [adsr! adsr]]))
+  (:require [cljs-audio.envelopes :refer [adsr! adsr at-time cancel-at-time!]]))
 
 (defn poly [synth params-v]
   (let [synths
@@ -19,11 +19,18 @@
      [:delay :vca]
      [:vca :>]}])
 
-(defn one-shot-sample [{:keys [buffer start-time rate gain] :or {buffer nil start-time nil rate 1 gain 1}}]
-  [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when start-time {:start start-time}))]
-    :vca    [:gain {:gain gain}]}
-   #{[:player :vca]
-     [:vca :>]}])
+(defn one-shot-sample [{:keys [buffer time rate adsr-lp adsr-vca] :or {adsr-lp #(0) adsr-vca #(0) buffer nil time nil rate 1}}]
+  [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when time {:start time :stop (+ 1 time)}))]
+    ;:vca    [:gain {:gain (adsr-vca time)}]
+    :lp     [:biquad-filter {:type      "lowpass"
+                             :gain      1
+                             :frequency 10000}]
+    :lfo [:oscillator {:frequency 100 :start 0}]
+    }
+   #{[:lp :>]
+     [:player :lp]
+     [:oscillator [:lp :frequency]]
+     }])
 
 (defn multi-tap-delay [{:keys [dry times gains] :or {dry   1
                                                      times (mapv at-start [1])
@@ -44,7 +51,7 @@
   [{:osc [:oscillator {:frequency frequency
                        :detune    detune
                        :type      type
-                       :start start}]
+                       :start     start}]
     :vca [:gain {:gain gain}]}
    #{[:osc :vca]
      [:vca :>]}])

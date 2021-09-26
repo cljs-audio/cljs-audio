@@ -19,36 +19,27 @@
                   (:connections thing) :patch
                   :else (println "Can't parse " thing path patch)))))))
 
-(defmulti resolve-from path-type)
 
-(defmethod resolve-from nil [path]
-  nil)
+(defn resolve-from [path root-patch]
+  (let [type (path-type path root-patch)]
+    (case type
+      nil nil
+      :node path
+      :top nil
+      :patch (into path [:group ::out])
+      )
+    ))
 
-(defmethod resolve-from :node [path]
-  path)
-
-(defmethod resolve-from :top [path]
-  nil)
-
-(defmethod resolve-from :patch [path root-patch]
-  (into path [:group ::out]))
-
-(defmulti resolve-to path-type)
-
-(defmethod resolve-to nil [path]
-  nil)
-
-(defmethod resolve-to :node [path]
-  path)
-
-(defmethod resolve-to :top [path]
-  [:ctx])
-
-(defmethod resolve-to :parameter [path]
-  path)
-
-(defmethod resolve-to :patch [path root-patch]
-  (into path [:group ::in]))
+(defn resolve-to [path root-patch]
+  (let [type (path-type path root-patch)]
+    (case type
+      nil nil
+      :node path
+      :top [:ctx]
+      :patch (into path [:group ::in])
+      :parameter path
+      )
+    ))
 
 (defn schedule [path name [command & args]]
   [:schedule path name command (vec args)])
@@ -58,32 +49,14 @@
     :start [[:start path value]]
     :stop [[:stop path value]]
     (if (vector? value)
-      (if (vector? (first value))
-        (into [] (mapv (fn [value] (schedule path name value)) value))
-        [(schedule path name (vec value))])
+      (into [] (mapv (fn [value] (schedule path name value)) value))
       [[:set path name value]])))
 
 (defn make-set-params [path params]
   (into [] (mapcat (fn [[name value]] (set-parameter path name value)) (vec params))))
 
 (defn make-add-node [path type create-args]
-  (into [[:add-node path type (or create-args [])]]
-        (when (type #{:oscillator :biquad-filter}) (set-parameter path :frequency 0))))
-
-(def get-parameters second)
-
-(defn indices [pred coll]
-  (keep-indexed #(when (pred %2) %1) coll))
-
-(defn find-from [val {:keys [from]}] (= from val))
-(defn find-to [val {:keys [to]}] (= to val))
-
-(defn find-first [f coll]
-  (first (drop-while (complement f) coll)))
-
-(defn find-connection-id-by-to [connections to-id]
-  (let [first-connection (find-first (fn [[_ to]] (= to to-id)) (into [] connections))]
-    (first first-connection)))
+  [[:add-node path type (or create-args [])]])
 
 (defn make-connect [connection-path patch]
   (let [parent-patch-path (vec (drop-last 2 connection-path))
@@ -160,41 +133,35 @@
   (let [[path op v] edit]
     (match [[(into [] (reverse path)) op v]]
            ;; connections
-           [[[:connections & r] :r #{}]] [:remove-all-connections path]
-           [[[:connections & r] :r v]] [:replace-all-connections path]
-           [[[_ :connections & r] :+ v]] [:add-connection path]
-           [[[_ :connections & r] :- v]] [:remove-connection path]
+           [[[:connections & r] :r #{}]] #js [:remove-all-connections path]
+           [[[:connections & r] :r v]] #js [:replace-all-connections path]
+           [[[_ :connections & r] :+ v]] #js [:add-connection path]
+           [[[_ :connections & r] :- v]] #js [:remove-connection path]
            ;; parameters
-           [[[:start :parameters & r] :r v]] [:start path]
-           [[[:start :parameters & r] :+ v]] [:start path]
-           [[[:stop :parameters & r] :r v]] [:stop path]
-           [[[:stop :parameters & r] :+ v]] [:stop path]
-           [[[_ :parameters & r] :r v]] [:replace-parameter path]
-           [[[_ _ :parameters & r] :r v]] [:replace-parameter (drop-last 1 path)]
-           [[[_ _ _ :parameters & r] :r v]] [:replace-parameter (drop-last 2 path)]
-           [[[_ :parameters & r] :+ v]] [:set-parameter path]
-           [[[_ _ :parameters & r] :+ v]] [:set-parameter (drop-last 1 path)]
-           [[[_ _ _ :parameters & r] :+ v]] [:set-parameter (drop-last 2 path)]
-           [[[_ :parameters & r] :- v]] [:no-op]
-           [[[_ _ :parameters & r] :- v]] [:no-op]
-           [[[_ _ _ :parameters & r] :- v]] [:no-op]
+           [[[:start :parameters & r] :r v]] #js [:start path]
+           [[[:start :parameters & r] :+ v]] #js [:start path]
+           [[[:stop :parameters & r] :r v]] #js [:stop path]
+           [[[:stop :parameters & r] :+ v]] #js [:stop path]
+           [[[_ :parameters & r] :r v]] #js [:replace-parameter path]
+           [[[_ _ :parameters & r] :r v]] #js [:replace-parameter (drop-last 1 path)]
+           [[[_ _ _ :parameters & r] :r v]] #js [:replace-parameter (drop-last 2 path)]
+           [[[_ :parameters & r] :+ v]] #js [:set-parameter path]
+           [[[_ _ :parameters & r] :+ v]] #js [:set-parameter (drop-last 1 path)]
+           [[[_ _ _ :parameters & r] :+ v]] #js [:set-parameter (drop-last 2 path)]
+           [[[_ :parameters & r] :- v]] #js [:no-op]
+           [[[_ _ :parameters & r] :- v]] #js [:no-op]
+           [[[_ _ _ :parameters & r] :- v]] #js [:no-op]
            ;; nodes
-           [[[:group & r] :r v]] [:replace-group path]
-           [[[:group & r] :+ v]] [:replace-group path]
-           [[[_ :group & r] :r v]] [:replace-node path]
-           [[[_ :group & r] :+ v]] [:add-node path]
-           [[[:create-args id & r] :r v]] [:recreate-node path] ;; TODO:!!!
+           [[[_ :group & r] :r v]] #js [:replace-node path]
+           [[[_ :group & r] :+ v]] #js [:add-node path]
+           [[[:group & r] :r v]] #js [:replace-group path]
+           [[[:group & r] :+ v]] #js [:replace-group path]
+           [[[:create-args id & r] :r v]] #js [:recreate-node path] ;; TODO:!!!
            )))
 
 (defn make-updates [a b]
   (let [edits (e/get-edits (e/diff a b) {:algo :quick})]
-    (mapv (fn [edit] (edit->update edit)) edits)))
-
-(defmulti update->commands (fn [[update-name]]
-                             update-name))
-
-(defmethod update->commands :add-connection [[_ path] _ patch]
-  (make-connect path patch))
+    (to-array (mapv (fn [edit] (edit->update edit)) edits))))
 
 (defn make-disconnect [connection-path patch]
   (let [parent-patch-path (vec (drop-last 2 connection-path))
@@ -202,52 +169,15 @@
         [from to] (mapv (fn [node] (into parent-patch-path [:group node])) nodes)]
     [(into [:disconnect] [(resolve-from from patch) (resolve-to to patch)])]))
 
-(defmethod update->commands :remove-connection [[_ path] patch _]
-  (make-disconnect path patch))
-
 (defn remove-all-connections [path patch]
   (let [connections-path (vec (drop-last path))
         connections (get-in patch path)]
     (into [] (mapcat (fn [connection] (make-disconnect (into connections-path [connection]) patch)) connections))))
 
-(defmethod update->commands :remove-all-connections [[_ path] old-patch]
-  (remove-all-connections path old-patch))
-
 (defn add-all-connections [path patch]
   (let [connections-path (vec (drop-last path))
         connections (get-in patch path)]
     (into [] (mapcat (fn [connection] (make-connect (into connections-path [:connections connection]) patch)) connections))))
-
-(defmethod update->commands :replace-all-connections [[_ path] old-patch new-patch]
-  (concat (remove-all-connections path old-patch)
-          (add-all-connections path new-patch)))
-
-(defmethod update->commands :set-parameters [[_ path] _ new-patch]
-  (let [node-path (vec (drop-last 2 path))]
-    (vec (mapcat (fn [name value]
-                   (set-parameter node-path name value))
-                 (get-in new-patch path)))))
-
-(defmethod update->commands :set-parameter [[_ path] _ new-patch]
-  (let [value (get-in new-patch path)
-        parameter-name (last path)
-        node-path (vec (drop-last 2 path))]
-    (set-parameter node-path parameter-name value)))
-
-(defmethod update->commands :replace-parameter [[_ path] _ new-patch]
-  (let [value (get-in new-patch path)
-        parameter-name (last path)
-        node-path (vec (drop-last 2 path))]
-    (set-parameter node-path parameter-name value)))
-
-(defmethod update->commands :replace-group [[_ path] old-patch new-patch]
-  (into (remove-group path old-patch) (add-group path new-patch)))
-
-(defmethod update->commands :add-node [[_ path] old-patch new-patch]
-  (let [node (get-in new-patch path)]
-    (cond
-      (:type node) (add-node path new-patch)
-      :else (add-group (into path [:group]) new-patch))))
 
 (defn replace-node [path old-patch new-patch]
   (into
@@ -260,22 +190,40 @@
         (:type node) (add-node path new-patch)
         :else (add-group (into path [:group]) new-patch)))))
 
-(defmethod update->commands :replace-node [[_ path] old-patch new-patch]
-  (replace-node path old-patch new-patch))
-
-(defmethod update->commands :start [[_ path] old-patch new-patch]
-  (let [value (get-in new-patch path)
-        node-path (vec (drop-last 2 path))
-        res (into (replace-node node-path old-patch new-patch)
-                  [[:start node-path value]])]
-    res))
-
-(defmethod update->commands :stop [[_ path] _ new-patch]
-  (let [value (get-in new-patch path)
-        node-path (vec (drop-last 2 path))]
-    [[:stop node-path value]]))
-
-(defmethod update->commands :no-op [] [])
+(defn update->commands [[name path] old-patch new-patch]
+  (case name
+    :add-connection (make-connect path new-patch)
+    :remove-connection (make-disconnect path old-patch)
+    :remove-all-connections (remove-all-connections path old-patch)
+    :replace-all-connections (concat (remove-all-connections path old-patch)
+                                     (add-all-connections path new-patch))
+    :set-parameters (let [node-path (vec (drop-last 2 path))]
+                      (vec (mapcat (fn [name value]
+                                     (set-parameter node-path name value))
+                                   (get-in new-patch path))))
+    :set-parameter (let [value (get-in new-patch path)
+                         parameter-name (last path)
+                         node-path (vec (drop-last 2 path))]
+                     (set-parameter node-path parameter-name value))
+    :replace-parameter (let [value (get-in new-patch path)
+                             parameter-name (last path)
+                             node-path (vec (drop-last 2 path))]
+                         (set-parameter node-path parameter-name value))
+    :replace-group (into (remove-group path old-patch) (add-group path new-patch))
+    :add-node (let [node (get-in new-patch path)]
+                (cond
+                  (:type node) (add-node path new-patch)
+                  :else (add-group (into path [:group]) new-patch)))
+    :replace-node (replace-node path old-patch new-patch)
+    :start (let [value (get-in new-patch path)
+                 node-path (vec (drop-last 2 path))]
+             (into (replace-node node-path old-patch new-patch)
+                   [[:start node-path value]]))
+    :stop (let [value (get-in new-patch path)
+                node-path (vec (drop-last 2 path))]
+            [[:stop node-path value]])
+    :no-op []
+    ))
 
 (defn ->node-ast [[type parameters create-args]] {:type type :parameters parameters :create-args create-args})
 
@@ -296,25 +244,27 @@
 (defn cleanup-meaningless-ops [[name a1 a2]]
   (not (and (= name :connect) (or (= a1 []) (= a2 [])))))
 
+(def priorities (into {} (map-indexed
+                           (fn [ndx command] [command ndx])
+                           [:stop
+                            :disconnect
+                            :remove-node
+                            :add-node
+                            :start
+                            :set
+                            :connect
+                            :connect-parameter
+                            :schedule])))
+
 (defn sort-updates-by-priority [updates]
-  (vec (sort-by (fn [thing]
-                  (let [[update-name] thing]
-                    (update-name
-                      (into {} (map-indexed
-                                 (fn [ndx command] [command ndx])
-                                 [:stop
-                                  :disconnect
-                                  :remove-node
-                                  :add-node
-                                  :set
-                                  :connect
-                                  :connect-parameter
-                                  :start
-                                  :schedule])))))
-                updates)))
+  (sort-by (fn [thing]
+             (let [[update-name] thing]
+               (update-name
+                 priorities)))
+           updates))
 
 (defn patches->commands [old new]
   (let [a (->patch-ast old)
         b (->patch-ast new)
         updates (make-updates a b)]
-    (sort-updates-by-priority (into [] (filter cleanup-meaningless-ops (vec (mapcat #(update->commands % a b) updates)))))))
+    (vec (sort-updates-by-priority (filter cleanup-meaningless-ops (distinct (apply concat (mapv #(update->commands % a b) updates))))))))

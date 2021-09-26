@@ -15,7 +15,7 @@
 
 (defn- chan?
   [x]
-  (satisfies? cljs.core.async.impl.protocols/ReadPort x))
+  (implements? cljs.core.async.impl.protocols/ReadPort x))
 
 (defn- do-respond!
   [data]

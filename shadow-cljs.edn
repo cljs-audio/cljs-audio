@@ -10,7 +10,7 @@
                                                         :depends-on #{:shared}
                                                         :web-worker true}}
                             :release          {:js-options {:minimize-require true}}
-                            :compiler-options {:infer-externs :auto}}
+                            :compiler-options {:infer-externs :auto :static-fns true}}
             :build-example {:target     :browser
                             :modules    {:shared {:entries []}
                                          :main   {:init-fn    cljs-audio.app/main
