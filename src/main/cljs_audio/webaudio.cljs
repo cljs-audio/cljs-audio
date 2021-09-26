@@ -23,10 +23,9 @@
   "Generates updated state of cljs-audio instance
   and executes web audio side effects.
   Returns updated state."
-  (go
-    (main/do-with-pool! workers {:handler   :patches->commands,
-                                 :arguments {:old-patch patch
-                                             :new-patch new-patch}})))
+  (main/do-with-pool! workers {:handler   :patches->commands,
+                               :arguments {:old-patch patch
+                                           :new-patch new-patch}}))
 
 (defn apply-updates [{:keys [ctx env polyfill buffers workers]} updates]
   {:env     (eval-updates ctx env polyfill buffers updates)
@@ -34,7 +33,7 @@
    :buffers buffers :workers workers})
 
 (defn shift-schedule-time [args delta]
-  (if (> (count args) 1)
+  (if (and (> (count args) 1) (not= 0 (second args)))
     (update-in args [1] #(max 0 (+ % delta)))
     args))
 

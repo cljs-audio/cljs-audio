@@ -6,6 +6,8 @@
 (defn cancel-at-time! [time]
   [[:cancel-scheduled-values time]])
 
+
+
 (defn at-time! [v time]
   (into (cancel-at-time! time)
         (at-time v time)))
@@ -16,8 +18,7 @@
         [[:exponential-ramp-to-value-at-time (+ 0.0001 value) (+ time a)]
          [:exponential-ramp-to-value-at-time (+ (* s value) 0.0001) (+ time a d)]
          [:exponential-ramp-to-value-at-time (+ (* s value) 0.0001) (+ time a d s-length)]
-         [:exponential-ramp-to-value-at-time 0.0001 (+ time a d s-length r)]
-         ]))
+         [:exponential-ramp-to-value-at-time 0.0001 (+ time a d s-length r)]]))
 
 (defn adsr! [a d s r s-length value time]
   "Cancels all scheduled values and schedules ADSR envelope."

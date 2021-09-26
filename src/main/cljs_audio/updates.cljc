@@ -67,7 +67,8 @@
   (into [] (mapcat (fn [[name value]] (set-parameter path name value)) (vec params))))
 
 (defn make-add-node [path type create-args]
-  [[:add-node path type (or create-args [])]])
+  (into [[:add-node path type (or create-args [])]]
+        (when (type #{:oscillator :biquad-filter}) (set-parameter path :frequency 0))))
 
 (def get-parameters second)
 
@@ -316,4 +317,4 @@
   (let [a (->patch-ast old)
         b (->patch-ast new)
         updates (make-updates a b)]
-    (sort-updates-by-priority (into [] (filter cleanup-meaningless-ops (distinct (mapcat #(update->commands % a b) updates)))))))
+    (sort-updates-by-priority (into [] (filter cleanup-meaningless-ops (vec (mapcat #(update->commands % a b) updates)))))))

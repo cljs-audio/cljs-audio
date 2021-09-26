@@ -537,7 +537,6 @@
 (run-update->commands [empty-patch super-complex-synth])
 
 (defn one-shot-sample [{:keys [buffer start-time rate] :or {buffer nil start-time nil rate 1}}]
-  (println "start-time" start-time)
   [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when start-time {:start start-time}))]}
    #{[:player :>]}])
 
