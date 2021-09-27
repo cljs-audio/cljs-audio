@@ -88,22 +88,20 @@
         ]
     (p/then (calculate-updates audio part-patch)
             (fn [updates]
-              (let [updates-calc-interval (- (current-time audio) start-time)
+              (let [updates-done-time (current-time audio)
+                    updates-calc-interval (- updates-done-time start-time)
                     next-part-time-offset (- part-interval updates-calc-interval)
                     ;; also known as time taken by updates calculation
                     ;; without lag from the previous schedule-part cycle
                     shifted-updates (shift-time-by updates next-part-time-offset)
                     new-env (apply-updates audio shifted-updates)
-                    updates-calc-and-application-interval (- (current-time audio) start-time)
+                    timeout-start-time (current-time audio)
+                    updates-calc-and-application-interval (- timeout-start-time start-time)
                     rest-of-part-interval (- part-interval updates-calc-and-application-interval)
                     ;; integrates time taken by updates application
                     ]
-                (println next-part-time-offset)
-                (p/then (set-timeout rest-of-part-interval)
+                (p/then (set-timeout (+ rest-of-part-interval ideal-part-interval))
                         (fn [] (let [part-interval-lag
-                                     (- (current-time audio)
-                                        (+ (- part-interval
-                                              (+ updates-calc-and-application-interval
-                                                 rest-of-part-interval))))]
+                                     (- (current-time audio) timeout-start-time rest-of-part-interval)]
                                  {:audio (into audio {:patch part-patch :env new-env})
                                   :lag   part-interval-lag}))))))))
