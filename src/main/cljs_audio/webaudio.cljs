@@ -5,7 +5,9 @@
     [cljs.core.async.interop :refer-macros [<p!]]
     [cognitect.transit :as t]
     [cljs-audio.workers.core :as main]
-    [cljs-audio.updates :refer [patches->commands ->patch-ast]]))
+    [cljs-audio.updates :refer [patches->commands ->patch-ast]]
+    ["worker-timers" :as worker-timers]
+    [promesa.core :as p]))
 
 (defn make-audio [{:keys [polyfill stream buffers] :or {polyfill {} buffers {}}}]
   "Creates an instance of cljs-audio.
@@ -27,17 +29,15 @@
   "Generates updated state of cljs-audio instance
   and executes web audio side effects.
   Returns updated state."
-  (main/do-with-pool! workers {:handler   :patches->commands,
-                               :arguments {:old-patch patch
-                                           :new-patch new-patch}}))
+  (let [p (p/deferred)]
+    (take! (main/do-with-pool! workers {:handler   :patches->commands,
+                                        :arguments {:old-patch patch
+                                                    :new-patch new-patch}})
+           #(p/resolve! p (:data %)))
+    p))
 
-(defn apply-updates [{:keys [ctx env polyfill buffers workers patch]} updates]
-  {:env      (eval-updates! ctx env polyfill buffers updates)
-   :ctx      ctx
-   :polyfill polyfill
-   :buffers  buffers
-   :workers  workers
-   :patch    patch})
+(defn apply-updates [{:keys [ctx env polyfill buffers]} updates]
+  (eval-updates! ctx env polyfill buffers updates))
 
 (defn shift-schedule-time [args delta]
   (if (and (> (count args) 1) (not= 0 (second args)))
@@ -63,15 +63,47 @@
 (defn fetch-sample [{:keys [ctx]} path]
   "Fetches sample and decode it to audio data.
   Returns a Promise."
-  (go (->> (js/fetch path)
-           (<p!)
-           (.arrayBuffer)
-           (<p!)
-           (.decodeAudioData ctx)
-           (<p!))))
+  (-> (js/fetch path)
+      (p/then #(.arrayBuffer %))
+      (p/then #(.decodeAudioData ctx %))))
 
 (defn current-time
   "Returns current audio context time."
   [{:keys [ctx]}] (.-currentTime ctx))
 
-(defn resume [{:keys [ctx]}] (go (<p! (.resume ctx))))
+(defn resume [{:keys [ctx]}]
+  (.resume ctx))
+
+(defn set-timeout [interval]
+  "Schedules time out in a worker.
+  Takes time interval in seconds and a callback."
+  (let [p (p/deferred)]
+    (.setTimeout worker-timers #(p/resolve! p) (* 1000 interval))
+    p))
+
+(defn schedule-part [ideal-part-interval audio part-patch lag]
+  (let [start-time (current-time audio)
+        part-interval (- ideal-part-interval lag)
+        ;; integrate lag from previous scheduling cycle
+        ]
+    (p/then (calculate-updates audio part-patch)
+            (fn [updates]
+              (let [updates-calc-interval (- (current-time audio) start-time)
+                    next-part-time-offset (- part-interval updates-calc-interval)
+                    ;; also known as time taken by updates calculation
+                    ;; without lag from the previous schedule-part cycle
+                    shifted-updates (shift-time-by updates next-part-time-offset)
+                    new-env (apply-updates audio shifted-updates)
+                    updates-calc-and-application-interval (- (current-time audio) start-time)
+                    rest-of-part-interval (- part-interval updates-calc-and-application-interval)
+                    ;; integrates time taken by updates application
+                    ]
+                (println next-part-time-offset)
+                (p/then (set-timeout rest-of-part-interval)
+                        (fn [] (let [part-interval-lag
+                                     (- (current-time audio)
+                                        (+ (- part-interval
+                                              (+ updates-calc-and-application-interval
+                                                 rest-of-part-interval))))]
+                                 {:audio (into audio {:patch part-patch :env new-env})
+                                  :lag   part-interval-lag}))))))))

@@ -13,6 +13,7 @@
     "release": "clj -M:release"
   },
   "dependencies": {
-    "standardized-audio-context": "^25.3.6"
+    "standardized-audio-context": "^25.3.6",
+    "worker-timers": "^7.0.40"
   }
 }

@@ -1,4 +1,5 @@
-(ns cljs-audio.scheduling)
+(ns cljs-audio.scheduling
+  (:require [cljs-audio.webaudio :as wa]))
 
 (defn schedule-parameters [schedulers events]
   (let [schedulers-keys (keys schedulers)]
