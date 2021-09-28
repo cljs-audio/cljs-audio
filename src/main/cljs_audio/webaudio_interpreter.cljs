@@ -66,7 +66,7 @@
                         node-path
                         node)]
       (if (type #{:oscillator :biquad-filter})
-        (set-parameter [node-path :frequency 0] [ctx env polyfill buffers])
+        (set-parameter [node-path :frequency 0.0001] [ctx env polyfill buffers])
         env))))
 
 (defn connect [[from-path to-path] [ctx env polyfill buffers]]

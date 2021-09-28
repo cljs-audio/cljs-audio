@@ -25,16 +25,14 @@
      :workers  (main/create-pool 1 "js/worker.js")
      :buffers  buffers}))
 
-(defn calculate-updates [{:keys [ctx patch env polyfill stream workers buffers]} new-patch]
+(defn calculate-updates [{:keys [ctx patch env polyfill stream workers buffers]} new-patch cb]
   "Generates updated state of cljs-audio instance
   and executes web audio side effects.
   Returns updated state."
-  (let [p (p/deferred)]
-    (take! (main/do-with-pool! workers {:handler   :patches->commands,
-                                        :arguments {:old-patch patch
-                                                    :new-patch new-patch}})
-           #(p/resolve! p (:data %)))
-    p))
+  (take! (main/do-with-pool! workers {:handler   :patches->commands,
+                                      :arguments {:old-patch patch
+                                                  :new-patch new-patch}})
+         #(cb (:data %))))
 
 (defn apply-updates [{:keys [ctx env polyfill buffers]} updates]
   (eval-updates! ctx env polyfill buffers updates))
@@ -74,34 +72,36 @@
 (defn resume [{:keys [ctx]}]
   (.resume ctx))
 
-(defn set-timeout [interval]
+(defn set-timeout [{:keys [interval start-time audio]} cb]
   "Schedules time out in a worker.
   Takes time interval in seconds and a callback."
-  (let [p (p/deferred)]
-    (.setTimeout worker-timers #(p/resolve! p) (* 1000 interval))
-    p))
+  (.setTimeout worker-timers (fn [] (let [timeout-time (current-time audio)
+                                          elapsed-time (- timeout-time start-time)]
+                                      (cb (- elapsed-time interval))))
+               (* 1000 interval)))
 
-(defn schedule-part [ideal-part-interval audio part-patch lag]
-  (let [start-time (current-time audio)
-        part-interval (- ideal-part-interval lag)
-        ;; integrate lag from previous scheduling cycle
-        ]
-    (p/then (calculate-updates audio part-patch)
-            (fn [updates]
-              (let [updates-done-time (current-time audio)
-                    updates-calc-interval (- updates-done-time start-time)
-                    next-part-time-offset (- part-interval updates-calc-interval)
-                    ;; also known as time taken by updates calculation
-                    ;; without lag from the previous schedule-part cycle
-                    shifted-updates (shift-time-by updates next-part-time-offset)
-                    new-env (apply-updates audio shifted-updates)
-                    timeout-start-time (current-time audio)
-                    updates-calc-and-application-interval (- timeout-start-time start-time)
-                    rest-of-part-interval (- part-interval updates-calc-and-application-interval)
-                    ;; integrates time taken by updates application
-                    ]
-                (p/then (set-timeout (+ rest-of-part-interval ideal-part-interval))
-                        (fn [] (let [part-interval-lag
-                                     (- (current-time audio) timeout-start-time rest-of-part-interval)]
-                                 {:audio (into audio {:patch part-patch :env new-env})
-                                  :lag   part-interval-lag}))))))))
+(defn schedule-part [ideal-part-interval audio part-patch lag cb]
+  (let [start-time (current-time audio)]
+    (calculate-updates
+      audio
+      part-patch
+      (fn [updates]
+        (let [updates-done-time (current-time audio)
+              updates-calc-interval (- updates-done-time start-time)
+              next-part-time-offset (+ lag updates-calc-interval)
+              ;; also known as time taken by updates calculation
+              ;; without lag from the previous schedule-part cycle
+              application-start-time (current-time audio)
+              shifted-updates (shift-time-by updates next-part-time-offset)
+              new-env (apply-updates audio shifted-updates)
+              application-end-time (current-time audio)
+              application-interval (- application-end-time application-start-time)
+              rest-of-part-interval (- ideal-part-interval lag updates-calc-interval application-interval)]
+          (set-timeout {:interval   rest-of-part-interval
+                        :audio      audio
+                        :start-time (current-time audio)}
+                       (fn [part-interval-lag]
+                         (println :ideal-part-interval ideal-part-interval :interval rest-of-part-interval)
+                         (cb {:audio (into audio {:patch part-patch
+                                                  :env   new-env})
+                              :lag   part-interval-lag}))))))))

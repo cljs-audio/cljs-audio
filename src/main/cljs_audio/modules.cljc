@@ -10,7 +10,7 @@
     [synths
      connections]))
 
-(defn at-start [v] [:set-value-at-time v 0])
+(defn at-start [v] [:set-value-at-time v 0.001])
 
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
   [{:delay [:delay {:delay-time time} [10]]
@@ -25,11 +25,11 @@
     :lp     [:biquad-filter {:type      "lowpass"
                              :gain      1
                              :frequency 10000}]
-    :lfo [:oscillator {:frequency 100 :start 0}]
+    :lfo [:oscillator {:frequency 2 :start 0}]
     }
    #{[:lp :>]
      [:player :lp]
-     [:oscillator [:lp :frequency]]
+     [:lfo [:lp :frequency]]
      }])
 
 (defn multi-tap-delay [{:keys [dry times gains] :or {dry   1
