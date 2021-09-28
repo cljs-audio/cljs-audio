@@ -101,7 +101,6 @@
                         :audio      audio
                         :start-time (current-time audio)}
                        (fn [part-interval-lag]
-                         (println :ideal-part-interval ideal-part-interval :interval rest-of-part-interval)
                          (cb {:audio (into audio {:patch part-patch
                                                   :env   new-env})
                               :lag   part-interval-lag}))))))))
