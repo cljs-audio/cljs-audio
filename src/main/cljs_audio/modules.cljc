@@ -25,11 +25,11 @@
     :lp     [:biquad-filter {:type      "lowpass"
                              :gain      1
                              :frequency 10000}]
-    :lfo [:oscillator {:frequency 2 :start 0}]
+    ;:lfo [:oscillator {:frequency 2 :start 0}]
     }
-   #{[:lp :>]
-     [:player :lp]
-     [:lfo [:lp :frequency]]
+   #{#_[:lp :>]
+     [:player :>]
+     #_[:lfo [:lp :frequency]]
      }])
 
 (defn multi-tap-delay [{:keys [dry times gains] :or {dry   1

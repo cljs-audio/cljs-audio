@@ -236,10 +236,13 @@
                                                                         (if (= to-id :>) ::out to-id)])
                                                  (into [] connections))))
 
+(defn ->ports-ast [ports] ports)
+
 (defn ->patch-ast [patch]
-  (let [[group connections] patch]
+  (let [[group connections ports] patch]
     {:group       (->group-ast group)
-     :connections (->connections-ast connections)}))
+     :connections (->connections-ast connections)
+     :ports       (->ports-ast ports)}))
 
 (defn cleanup-meaningless-ops [[name a1 a2]]
   (not (and (= name :connect) (or (= a1 []) (= a2 [])))))
