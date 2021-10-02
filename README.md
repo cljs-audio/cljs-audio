@@ -1,3 +1,5 @@
+Beware! the project is in highly experimental state.
+
 # cljs-audio
 [![CircleCI](https://circleci.com/gh/cljs-audio/cljs-audio/tree/master.svg?style=svg)](https://circleci.com/gh/cljs-audio/cljs-audio/tree/master)
 
