@@ -1,6 +1,6 @@
 (ns cljs-audio.webaudio
   (:require
-    [cljs-audio.webaudio-interpreter :refer [eval-updates!]]
+    [cljs-audio.webaudio-interpreter :refer [eval-updates! schedule]]
     [cljs.core.async :refer [go promise-chan put! <! >! take!]]
     [cljs.core.async.interop :refer-macros [<p!]]
     [cognitect.transit :as t]
@@ -25,14 +25,16 @@
      :workers  (main/create-pool 4 "js/worker.js")
      :buffers  buffers}))
 
-(defn calculate-updates [{:keys [ctx patch env polyfill stream workers buffers]} new-patch cb]
+(defn calculate-updates [{:keys [patch workers]} new-patch]
   "Generates updated state of cljs-audio instance
   and executes web audio side effects.
   Returns updated state."
-  (take! (main/do-with-pool! workers {:handler   :patches->commands,
-                                      :arguments {:old-patch patch
-                                                  :new-patch new-patch}})
-         #(cb (:data %))))
+  (let [p (p/deferred)]
+    (take! (main/do-with-pool! workers {:handler   :patches->commands,
+                                        :arguments {:old-patch patch
+                                                    :new-patch new-patch}})
+           #(p/resolve! p (:data %)))
+    p))
 
 (defn apply-updates [{:keys [ctx env polyfill buffers]} updates]
   (eval-updates! ctx env polyfill buffers updates))
@@ -56,7 +58,7 @@
 (defn add-module [{:keys [ctx]} path]
   "Fetches audio worklet module.
   Returns a Promise."
-  (go (<p! (.addModule (.-audioWorklet ctx) "js/noise-generator.js"))))
+  (.addModule (.-audioWorklet ctx) path))
 
 (defn fetch-sample [{:keys [ctx]} path]
   "Fetches sample and decode it to audio data.
@@ -80,6 +82,13 @@
                                       (cb (- elapsed-time interval))))
                (* 1000 interval)))
 
+(defn schedule! [env path commands]
+  (let [param (last path)
+        node-path (butlast path)
+        full-path (take (* 2 (count node-path)) (interleave (repeat :group) node-path))]
+    (doseq [[command & args] commands]
+      (schedule [full-path param command args] env))))
+
 (defn schedule-part [ideal-part-interval audio part-patch lag cb]
   (let [start-time (current-time audio)]
     (calculate-updates
@@ -101,6 +110,52 @@
                         :audio      audio
                         :start-time (current-time audio)}
                        (fn [part-interval-lag]
-                         (cb {:audio (into audio {:patch part-patch
-                                                  :env   new-env})
-                              :lag   part-interval-lag}))))))))
+                         (cb {:audio     (into audio {:patch part-patch
+                                                      :env   new-env})
+                              :work-time part-interval-lag}))))))))
+
+(defn calc-updates [audio new-patch cb]
+  (let [start-time (current-time audio)]
+    (calculate-updates
+      audio
+      new-patch
+      (fn [updates]
+        (let [updates-done-time (current-time audio)
+              updates-calc-interval (- updates-done-time start-time)
+              ;; also known as time taken by updates calculation
+              ;; without lag from the previous schedule-part cycle
+              application-start-time (current-time audio)
+              new-env (apply-updates audio updates)
+              application-end-time (current-time audio)
+              application-interval (- application-end-time application-start-time)]
+          (cb {:audio     (into audio {:patch new-patch
+                                       :env   new-env})
+               :work-time (+ updates-calc-interval application-interval)}))))))
+
+(defn update! [audio new-patch cb]
+  (let [start-time (current-time audio)]
+    (calculate-updates
+      audio
+      new-patch
+      (fn [updates]
+        (let [updates-done-time (current-time audio)
+              updates-calc-interval (- updates-done-time start-time)
+              ;; also known as time taken by updates calculation
+              ;; without lag from the previous schedule-part cycle
+              application-start-time (current-time audio)
+              new-env (apply-updates audio updates)
+              application-end-time (current-time audio)
+              application-interval (- application-end-time application-start-time)]
+          (cb {:audio     (into audio {:patch new-patch
+                                       :env   new-env})
+               :work-time (+ updates-calc-interval application-interval)}))))))
+
+;; value port
+;; parameter port
+
+;(defn schedule! [{:keys [env ports ctx]} [port-path event-data]]
+;  (let [port-targets (get-port-targets port-path)]
+;    ;;  param port
+;    ;;  val port
+;    (if (port? port-target)
+;      (get-in-sibling))))

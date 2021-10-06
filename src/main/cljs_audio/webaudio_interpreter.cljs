@@ -107,7 +107,7 @@
            (catch js/Error err (js/console.log (ex-cause err))))))
   env)
 
-(defn schedule [[node-path param-name command args] [ctx env polyfill buffers]]
+(defn schedule [[node-path param-name command args] env]
   (let [node (get-in env node-path)
         param (case param-name
                 :gain (oget node "gain")
@@ -160,7 +160,6 @@
     :disconnect (if (nil? (second args)) (disconnect [(first args) nil] context)
                                          (disconnect args context))
     :remove-node (remove-node args context)
-    :schedule (schedule args context)
     :start (start args context)
     :stop (stop args context)))
 
