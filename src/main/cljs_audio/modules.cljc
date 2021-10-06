@@ -19,17 +19,13 @@
      [:delay :vca]
      [:vca :>]}])
 
-(defn one-shot-sample [{:keys [buffer time rate adsr-lp adsr-vca] :or {adsr-lp #(0) adsr-vca #(0) buffer nil time nil rate 1}}]
-  [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when time {:start time :stop (+ 1 time)}))]
-    ;:vca    [:gain {:gain (adsr-vca time)}]
-    :lp     [:biquad-filter {:type      "lowpass"
-                             :gain      1
-                             :frequency 10000}]
-    ;:lfo [:oscillator {:frequency 2 :start 0}]
+(defn one-shot-sample [{:keys [buffer]}]
+  [{:player [:buffer-source {:buffer buffer :playback-rate 1}]
+    :vca    [:gain {:gain 1}]
     }
-   #{#_[:lp :>]
-     [:player :>]
-     #_[:lfo [:lp :frequency]]
+   #{
+     [:player :vca]
+     [:vca :>]
      }])
 
 (defn multi-tap-delay [{:keys [dry times gains] :or {dry   1

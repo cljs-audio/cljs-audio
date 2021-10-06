@@ -1,11 +1,11 @@
 (ns cljs-audio.webaudio
   (:require
-    [cljs-audio.webaudio-interpreter :refer [eval-updates! schedule]]
+    [cljs-audio.webaudio-interpreter :as wi :refer [eval-updates! schedule]]
     [cljs.core.async :refer [go promise-chan put! <! >! take!]]
     [cljs.core.async.interop :refer-macros [<p!]]
     [cognitect.transit :as t]
     [cljs-audio.workers.core :as main]
-    [cljs-audio.updates :refer [patches->commands ->patch-ast]]
+    [cljs-audio.updates :as up :refer [patches->commands ->patch-ast]]
     ["worker-timers" :as worker-timers]
     [promesa.core :as p]))
 
@@ -69,7 +69,7 @@
     (take! (main/do-with-pool! workers {:handler   :patches->commands,
                                         :arguments {:old-patch patch
                                                     :new-patch new-patch}})
-           #(p/resolve! p {:updates (:data %)
+           #(p/resolve! p {:updates   (:data %)
                            :work-time (- (current-time audio) start-time)}))
     p))
 
@@ -91,73 +91,13 @@
     (doseq [[command & args] commands]
       (schedule [full-path param command args] env))))
 
-(defn schedule-part [ideal-part-interval audio part-patch lag cb]
-  (let [start-time (current-time audio)]
-    (calculate-updates
-      audio
-      part-patch
-      (fn [updates]
-        (let [updates-done-time (current-time audio)
-              updates-calc-interval (- updates-done-time start-time)
-              next-part-time-offset (+ lag updates-calc-interval)
-              ;; also known as time taken by updates calculation
-              ;; without lag from the previous schedule-part cycle
-              application-start-time (current-time audio)
-              shifted-updates (shift-time-by updates next-part-time-offset)
-              new-env (apply-updates audio shifted-updates)
-              application-end-time (current-time audio)
-              application-interval (- application-end-time application-start-time)
-              rest-of-part-interval (- ideal-part-interval lag updates-calc-interval application-interval)]
-          (set-timeout {:interval   rest-of-part-interval
-                        :audio      audio
-                        :start-time (current-time audio)}
-                       (fn [part-interval-lag]
-                         (cb {:audio     (into audio {:patch part-patch
-                                                      :env   new-env})
-                              :work-time part-interval-lag}))))))))
+(defn start! [{:keys [patch env ctx polyfill buffers]} path value]
+  (let [full-path (take (* 2 (count path)) (interleave (repeat :group) path))
+        node (get-in env full-path)
+        connections (into (vec (take (- (* 2 (count path)) 2) (interleave (repeat 0) path))) [1])]
+    (println :connections (get-in patch connections))
 
-(defn calc-updates [audio new-patch cb]
-  (let [start-time (current-time audio)]
-    (calculate-updates
-      audio
-      new-patch
-      (fn [updates]
-        (let [updates-done-time (current-time audio)
-              updates-calc-interval (- updates-done-time start-time)
-              ;; also known as time taken by updates calculation
-              ;; without lag from the previous schedule-part cycle
-              application-start-time (current-time audio)
-              new-env (apply-updates audio updates)
-              application-end-time (current-time audio)
-              application-interval (- application-end-time application-start-time)]
-          (cb {:audio     (into audio {:patch new-patch
-                                       :env   new-env})
-               :work-time (+ updates-calc-interval application-interval)}))))))
-
-(defn update! [audio new-patch cb]
-  (let [start-time (current-time audio)]
-    (calculate-updates
-      audio
-      new-patch
-      (fn [updates]
-        (let [updates-done-time (current-time audio)
-              updates-calc-interval (- updates-done-time start-time)
-              ;; also known as time taken by updates calculation
-              ;; without lag from the previous schedule-part cycle
-              application-start-time (current-time audio)
-              new-env (apply-updates audio updates)
-              application-end-time (current-time audio)
-              application-interval (- application-end-time application-start-time)]
-          (cb {:audio     (into audio {:patch new-patch
-                                       :env   new-env})
-               :work-time (+ updates-calc-interval application-interval)}))))))
-
-;; value port
-;; parameter port
-
-;(defn schedule! [{:keys [env ports ctx]} [port-path event-data]]
-;  (let [port-targets (get-port-targets port-path)]
-;    ;;  param port
-;    ;;  val port
-;    (if (port? port-target)
-;      (get-in-sibling))))
+    ;(println (conj (vec (drop-last 2 full-path)) :connections))
+    (.start node value)
+    (let [env (wi/create-node [full-path :buffer-source []] [ctx env polyfill buffers])]
+      (wi/connect [full-path (into (vec (drop-last full-path)) [::up/out])] [ctx env polyfill buffers]))))

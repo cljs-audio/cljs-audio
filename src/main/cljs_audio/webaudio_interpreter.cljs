@@ -146,8 +146,8 @@
   (let [node (get-in env node-path)]
     (if node
       (do (when (exists? (.-stop node))
-        (try (.stop node)
-             (catch js/Error err (js/console.log (ex-cause err)))))
+            (try (.stop node)
+                 (catch js/Error err (js/console.log (ex-cause err)))))
           (dissoc-in env node-path))
       env)))
 

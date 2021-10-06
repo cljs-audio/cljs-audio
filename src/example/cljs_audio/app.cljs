@@ -30,32 +30,9 @@
    #{[:osc :vca]
      [:vca :>]}])
 
-(defn hat []
-  [{:noise [:audio-worklet {} ["noise-generator"]]
-    ;:lp    [:biquad-filter {:frequency 15000}]
-    :vca   [:gain {:gain 1}]}
-   #{[:noise :vca]
-     ;[:lp :vca]
-     [:vca :>]}])
-
-(defn simple-voice [{:keys [type]
-                     :or   {type "triangle"}}]
-  [{:osc1 [:oscillator {:frequency 0
-                        :detune    0
-                        :type      type
-                        :start     0}]
-    :vca  [:gain {:gain 1}]}
-   #{[:osc1 :vca]
-     [:vca :>]}
-   #_#{[:osc-frequency! [:osc1 :frequency]]
-       [:lfo-frequency! [:osc2 :frequency]]
-       [:gain! [:vca :gain] [[:at-time]]]}
-   ])
-
 (defn build-patch []
   [{:kick (kick)
-    :hat  (hat)
-    ;:hat2 (m/one-shot-sample {:buffer ch :start-time (+ time (/ 60 (* 2 bpm)))})
+    :hat  (m/one-shot-sample {:buffer :ch})
     }
    #{[:kick :>
       :hat :>]}
@@ -70,21 +47,23 @@
 (defn play [audio lag]
   (let [t (wa/current-time audio)
         env (:env audio)]
-    (println :env env)
-    (wa/schedule! env [:kick :osc :frequency]
+    #_(wa/schedule! env [:kick :osc :frequency]
                   (adsr 0.1 0.1 0.8 0.1 0.01 220 t))
-    (wa/schedule! env [:kick :vca :gain]
+    #_(wa/schedule! env [:kick :vca :gain]
                   (adsr 0.1 0.1 0.8 0.1 0.01 1 t))
-    (let [hats (vec (concat (adsr 0.01 0.1 0.8 0.1 0.01 1 t)
-                            (adsr 0.01 0.1 0.8 0.1 0.01 1 (+ t (t/seconds 140 "1/8")))
-                            (adsr 0.01 0.1 0.8 0.1 0.01 1 (+ t (* 2 (t/seconds 140 "1/8"))))
-                            (adsr 0.01 0.1 0.8 0.1 0.01 1 (+ t (* 3 (t/seconds 140 "1/8"))))))]
+    (let [hats (vec (concat
+                      (adsr 0.01 0.1 0.8 0.1 0.01 1 t)
+                      (adsr 0.01 0.1 0.8 0.1 0.01 1 (+ t (t/seconds 150 "1/8")))
+                      (adsr 0.01 0.1 0.8 0.1 0.01 1 (+ t (* 2 (t/seconds 150 "1/8"))))
+                      (adsr 0.01 0.1 0.8 0.1 0.01 1 (+ t (* 3 (t/seconds 150 "1/8"))))))
+          new-env (wa/start! audio [:hat :player] t)]
+
       (wa/schedule! env [:hat :vca :gain]
-                    hats))
-    (wa/set-timeout {:interval   (- beat lag)
-                     :start-time (wa/current-time audio)
-                     :audio      audio}
-                    #(play audio %))))
+                    hats)
+      (wa/set-timeout {:interval   (- beat lag)
+                       :start-time (wa/current-time audio)
+                       :audio      audio}
+                      #(play (into audio {:env new-env}) %)))))
 
 (defn resume-audio-context []
   (let [audio (wa/make-audio {:polyfill sac})]
@@ -98,13 +77,11 @@
                  new-patch (build-patch)]
              (p/then (wa/calculate-updates audio new-patch)
                      (fn [{:keys [updates]}]
-                       (let [audio
-                             (into audio
+                       (play (into audio
                                    {:patch new-patch
                                     :env   (wa/apply-updates
                                              audio
-                                             updates)})]
-                         (play audio 0))))))))
+                                             updates)}) 0)))))))
 
 (defn main []
   (doseq [ev events] (js/document.body.addEventListener ev resume-audio-context false)))
