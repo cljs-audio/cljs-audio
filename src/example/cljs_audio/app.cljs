@@ -97,15 +97,14 @@
                                               :ch ch}})
                  new-patch (build-patch)]
              (p/then (wa/calculate-updates audio new-patch)
-                     (fn [updates]
+                     (fn [{:keys [updates]}]
                        (let [audio
                              (into audio
                                    {:patch new-patch
                                     :env   (wa/apply-updates
                                              audio
                                              updates)})]
-                         (play audio 0))))
-             ))))
+                         (play audio 0))))))))
 
 (defn main []
   (doseq [ev events] (js/document.body.addEventListener ev resume-audio-context false)))

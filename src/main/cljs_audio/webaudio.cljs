@@ -25,17 +25,6 @@
      :workers  (main/create-pool 4 "js/worker.js")
      :buffers  buffers}))
 
-(defn calculate-updates [{:keys [patch workers]} new-patch]
-  "Generates updated state of cljs-audio instance
-  and executes web audio side effects.
-  Returns updated state."
-  (let [p (p/deferred)]
-    (take! (main/do-with-pool! workers {:handler   :patches->commands,
-                                        :arguments {:old-patch patch
-                                                    :new-patch new-patch}})
-           #(p/resolve! p (:data %)))
-    p))
-
 (defn apply-updates [{:keys [ctx env polyfill buffers]} updates]
   (eval-updates! ctx env polyfill buffers updates))
 
@@ -70,6 +59,19 @@
 (defn current-time
   "Returns current audio context time."
   [{:keys [ctx]}] (.-currentTime ctx))
+
+(defn calculate-updates [{:keys [patch workers] :as audio} new-patch]
+  "Generates updated state of cljs-audio instance
+  and executes web audio side effects.
+  Returns updated state."
+  (let [p (p/deferred)
+        start-time (current-time audio)]
+    (take! (main/do-with-pool! workers {:handler   :patches->commands,
+                                        :arguments {:old-patch patch
+                                                    :new-patch new-patch}})
+           #(p/resolve! p {:updates (:data %)
+                           :work-time (- (current-time audio) start-time)}))
+    p))
 
 (defn resume [{:keys [ctx]}]
   (.resume ctx))
