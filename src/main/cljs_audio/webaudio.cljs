@@ -49,6 +49,18 @@
   Returns a Promise."
   (.addModule (.-audioWorklet ctx) path))
 
+;(defn sample-rate [{:keys ctx}]
+;  (.-sampleRate ctx))
+;
+;(defn create-buffer [{:keys [ctx]} buffer-size]
+;  (.createBuffer ctx 1 buffer-size (.-sampleRate ctx)))
+
+;(defn make-white-noise [size noiseBuffer]
+;  (let [output (.getChannelData noiseBuffer 0)]
+;    (doseq [i size]
+;      (aset output i )
+;      )))
+
 (defn fetch-sample [{:keys [ctx]} path]
   "Fetches sample and decode it to audio data.
   Returns a Promise."
@@ -91,13 +103,15 @@
     (doseq [[command & args] commands]
       (schedule [full-path param command args] env))))
 
-(defn start! [{:keys [patch env ctx polyfill buffers]} path value]
+(defn start! [env path value]
   (let [full-path (take (* 2 (count path)) (interleave (repeat :group) path))
-        node (get-in env full-path)
-        connections (into (vec (take (- (* 2 (count path)) 2) (interleave (repeat 0) path))) [1])]
-    (println :connections (get-in patch connections))
-
+        node (get-in env full-path)]
+    (println :node node full-path env)
     ;(println (conj (vec (drop-last 2 full-path)) :connections))
-    (.start node value)
-    (let [env (wi/create-node [full-path :buffer-source []] [ctx env polyfill buffers])]
-      (wi/connect [full-path (into (vec (drop-last full-path)) [::up/out])] [ctx env polyfill buffers]))))
+    (try
+      (.start node value)
+      (catch js/Error e
+        (when (= (.-name e) "InvalidStateError") (println "Can't start more than once."))))
+    #_(let [env (wi/create-node [full-path :buffer-source []] [ctx env polyfill buffers])]
+      (wi/connect [full-path (into (vec (drop-last full-path)) [::up/out])] [ctx env polyfill buffers]))
+    ))
