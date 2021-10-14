@@ -42,9 +42,10 @@
         (case type
           :audio-worklet (new polyfill ctx (first create-args))
           :analyser (oapply ctx "createAnalyser" create-args)
-          :audio-buffer-source (oapply ctx "createAudioBufferSource" create-args)
+          :audio-buffer-source (do
+                                 (println :audio-buffer-source)
+                                 (oapply ctx "createBufferSource" create-args))
           :audio-destination (oapply ctx "createAudioDestination" create-args)
-          :audio-scheduled-source (oapply ctx "createAudioScheduledSource" create-args)
           :biquad-filter (oapply ctx "createBiquadFilter" create-args)
           :channel-merger (oapply ctx "createChannelMerger" create-args)
           :channel-splitters (oapply ctx "createChannelSplitter" create-args)
@@ -107,7 +108,7 @@
            (catch js/Error err (js/console.log (ex-cause err))))))
   env)
 
-(defn schedule [[node-path param-name command args] env]
+(defn schedule [[node-path param-name command args] [ctx env polyfill buffers]]
   (let [node (get-in env node-path)
         param (case param-name
                 :gain (oget node "gain")
@@ -161,7 +162,9 @@
                                          (disconnect args context))
     :remove-node (remove-node args context)
     :start (start args context)
-    :stop (stop args context)))
+    :stop (stop args context)
+    :schedule (schedule args context)
+    ))
 
 (defn eval-updates! [ctx env polyfill buffers updates]
   (reduce (fn [env update] (update->side-fx update [ctx env polyfill buffers])) env updates))

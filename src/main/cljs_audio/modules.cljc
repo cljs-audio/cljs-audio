@@ -19,9 +19,10 @@
      [:delay :vca]
      [:vca :>]}])
 
-(defn one-shot-sample [{:keys [buffer]}]
-  [{:player [:buffer-source {:buffer buffer :playback-rate 1}]
-    :vca    [:gain {:gain 1}]
+(defn one-shot-sample [{:keys [buffer time]}]
+  (println "one-shot-sample" time)
+  [{:player [:buffer-source {:buffer buffer :playback-rate 1 :start time}]
+    :vca    [:gain {:gain 0.5}]
     }
    #{
      [:player :vca]
