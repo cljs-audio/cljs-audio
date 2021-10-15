@@ -1,13 +1,11 @@
 (ns cljs-audio.webaudio
   (:require
-    [cljs-audio.webaudio-interpreter :as wi :refer [schedule]]
+    [cljs-audio.webaudio-interpreter :as wi]
     [cljs.core.async :refer [go promise-chan put! <! >! take!]]
     [cljs.core.async.interop :refer-macros [<p!]]
     [cognitect.transit :as t]
     [cljs-audio.workers.core :as main]
-    [cljs-audio.updates :as up :refer [patches->commands ->patch-ast]]
-    ["worker-timers" :as worker-timers]
-    [promesa.core :as p]))
+    [cljs-audio.updates :as up]))
 
 (defn make-audio [{:keys [polyfill stream buffers] :or {polyfill {} buffers {}}}]
   "Creates an instance of cljs-audio.
@@ -25,45 +23,17 @@
      :workers  (main/create-pool 4 "js/worker.js")
      :buffers  buffers}))
 
-(defn shift-schedule-time [args delta]
-  (if (and (> (count args) 1) (not= 0 (second args)))
-    (update-in args [1] #(max 0 (+ % delta)))
-    args))
-
-(defn shift-update-time
-  [delta update]
-  (let [[name node-path param command args] update]
-    (if (= :schedule name)
-      (let [args (shift-schedule-time args delta)]
-        [name node-path param command args])
-      update)))
-
-(defn shift-time-by [updates update-time-delta]
-  (mapv (partial shift-update-time update-time-delta) updates))
-
 (defn add-module [{:keys [ctx]} path]
   "Fetches audio worklet module.
   Returns a Promise."
   (.addModule (.-audioWorklet ctx) path))
 
-;(defn sample-rate [{:keys ctx}]
-;  (.-sampleRate ctx))
-;
-;(defn create-buffer [{:keys [ctx]} buffer-size]
-;  (.createBuffer ctx 1 buffer-size (.-sampleRate ctx)))
-
-;(defn make-white-noise [size noiseBuffer]
-;  (let [output (.getChannelData noiseBuffer 0)]
-;    (doseq [i size]
-;      (aset output i )
-;      )))
-
 (defn fetch-sample [{:keys [ctx]} path]
   "Fetches sample and decode it to audio data.
   Returns a Promise."
   (-> (js/fetch path)
-      (p/then #(.arrayBuffer %))
-      (p/then #(.decodeAudioData ctx %))))
+      (.then (fn [data] (-> (.arrayBuffer data)
+                            (.then (fn [buff] (.decodeAudioData ctx buff))))))))
 
 (defn current-time
   "Returns current audio context time."
@@ -73,31 +43,22 @@
   "Generates updated state of cljs-audio instance
   and executes web audio side effects.
   Returns updated state."
-  (let [p (p/deferred)]
-    (take! (main/do-with-pool! workers {:handler   :patches->commands,
-                                        :arguments {:old-patch patch
-                                                    :new-patch new-patch}})
-           (fn [result] (when (= (:state result) :error)
-                          (println (:error result)))
-             (p/resolve! p (:data result))))
-    p))
+  (new js/Promise (fn [resolve reject]
+                    (take! (main/do-with-pool! workers {:handler   :patches->commands,
+                                                        :arguments {:old-patch patch
+                                                                    :new-patch new-patch}})
+                           (fn [result] (when (= (:state result) :error)
+                                          (reject (:error result)))
+                             (resolve (:data result)))))))
+
+(defn calculate-updates-sync [{:keys [patch]} new-patch]
+  "Generates updated state of cljs-audio instance
+  and executes web audio side effects.
+  Returns updated state."
+  (up/patches->commands patch new-patch))
 
 (defn resume [{:keys [ctx]}]
   (.resume ctx))
 
-(defn set-timeout [{:keys [interval start-time audio]} cb]
-  "Schedules time out in a worker.
-  Takes time interval in seconds and a callback."
-  (.setTimeout worker-timers (fn [] (let [timeout-time (current-time audio)
-                                          elapsed-time (- timeout-time start-time)]
-                                      (cb (- elapsed-time interval))))
-               (* 1000 interval)))
-
-(def eval-updates! wi/eval-updates!)
-
-(defn schedule! [env path commands]
-  (let [param (last path)
-        node-path (butlast path)
-        full-path (take (* 2 (count node-path)) (interleave (repeat :group) node-path))]
-    (doseq [[command & args] commands]
-      (schedule [full-path param command args] env))))
+(defn eval-updates! [{:keys [ctx env polyfill buffers]} updates]
+  (reduce (fn [env update] (wi/update->side-fx update [ctx env polyfill buffers])) env updates))

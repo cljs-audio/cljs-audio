@@ -4,8 +4,6 @@
             [cljs-audio.scheduling :as s :refer [schedule-parameters]]))
 
 (deftest schedule-parameters-test
-  #_(testing "schedule-parameters with nothing"
-      (is (= (schedule-parameters {} [] 0) [])))
   (testing "schedule one parameter"
     (is (= (schedule-parameters {:gain at-time!} [{:gain 1 ::s/time 0}])
            {:gain (at-time! 1 0)})))

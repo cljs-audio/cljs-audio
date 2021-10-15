@@ -166,6 +166,3 @@
     :stop (stop args context)
     :schedule (schedule args context)
     ))
-
-(defn eval-updates! [{:keys [ctx env polyfill buffers]} updates]
-  (reduce (fn [env update] (update->side-fx update [ctx env polyfill buffers])) env updates))

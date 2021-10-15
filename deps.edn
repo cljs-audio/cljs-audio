@@ -11,13 +11,9 @@
   camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.2"}
   org.clojure/core.match              {:mvn/version "1.0.0"}
   binaryage/oops                      {:mvn/version "0.7.1"}
-  funcool/lentes                      {:mvn/version "1.3.3"}
-  tortue/spy                          {:mvn/version "2.9.0"}
   org.clojure/test.check              {:mvn/version "1.1.0"}
   medley/medley                       {:mvn/version "1.3.0"}
-  jtk-dvlp/cljs-workers               {:mvn/version "1.1.2"}
-  com.cognitect/transit-cljs          {:mvn/version "0.8.269"}
-  funcool/promesa                     {:mvn/version "6.0.2"}}
+  com.cognitect/transit-cljs          {:mvn/version "0.8.269"}}
 
  :aliases
  {:example
