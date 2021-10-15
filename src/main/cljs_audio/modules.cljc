@@ -10,7 +10,7 @@
     [synths
      connections]))
 
-(defn at-start [v] [[:set-value-at-time v 0.001]])
+(defn at-start [v] [[:set-value-at-time v 0]])
 
 (defn delay-fx [{:keys [time gain] :or {time 0.5 gain 1}}]
   [{:delay [:delay {:delay-time time} [10]]
@@ -30,8 +30,8 @@
      }])
 
 (defn multi-tap-delay [{:keys [dry times gains] :or {dry   1
-                                                     times (mapv at-start [1])
-                                                     gains (mapv at-start [1])}}]
+                                                     times (reduce into (mapv at-start [1]))
+                                                     gains (reduce into (mapv at-start [1]))}}]
   (let [delays (map-indexed
                  (fn [i [time gain]] [(keyword (str i))
                                       (delay-fx {:time time :gain gain})])

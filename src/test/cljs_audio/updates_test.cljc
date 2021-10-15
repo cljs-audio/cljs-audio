@@ -384,23 +384,8 @@
 (deftest update->commands-test
   (testing ":add-connection simple"
     (is (= (run-update->commands add-connection-simple) [[:connect [:group :osc] [:group :vca]]])))
-  #_(testing ":add-connection output nested"
-      (is (= (run-update->commands add-output-connection-nested)
-             [[:connect
-               [:group :waveforms :group :oscs :group :out :group :io]
-               [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]]])))
-  #_(testing ":remove-connection output nested"
-      (is (= (run-update->commands remove-output-connection-nested)
-             [[:disconnect
-               [:group :waveforms :group :oscs :group :out :group :io]
-               [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]]])))
   (testing ":remove-connection simple"
     (is (= (run-update->commands remove-connection-simple) [[:disconnect [:group :osc] [:group :vca]]])))
-  #_(testing ":add-connection input nested"
-      (is (= (run-update->commands add-input-connection-nested)
-             [[:connect
-               [:group :waveforms :group :oscs :group :out :group :cljs-audio.updates/out]
-               [:group :waveforms :group :oscs :group :out :group :io]]])))
   (testing ":replace-connection simple"
     (is (= (run-update->commands reconnect-simple) [[:disconnect [:group :osc] [:group :vca]]
                                                     [:connect [:group :osc2] [:group :vca2]]])))
@@ -411,10 +396,6 @@
     (is (= (run-update->commands replace-all-connections) [[:disconnect [:group :a] [:group :b]]
                                                            [:connect [:group :osc] [:group :vca]]
                                                            [:connect [:group :vca] [:ctx]]])))
-  #_(testing ":replace-all-connections nested"
-      (is (= (run-update->commands replace-all-connections-nested)
-             [[:connect [:group :waveforms :group :oscs :group :out :group :io] [:group :waveforms :group :cljs-audio.updates/out]]
-              [:connect [:group :waveforms :group :cljs-audio.updates/out] [:group :waveforms :group :oscs :group :out :group :io]]])))
   (testing ":add-connection to parameter"
     (is (= (run-update->commands connect-to-param) [[:connect-parameter [:group :osc2] [:group :vca] :gain]]))))
 
@@ -478,29 +459,15 @@
                         :connections #{[:osc :fx] [:fx :cljs-audio.updates/out]}})
            [:ctx]))))
 
-#_(path-type [:group :cljs-audio.updates/out]
-             {:group {:osc {:type :oscillator, :parameters {}, :create-args nil}, :fx {:group       {:fx {:type :delay, :parameters {:delay-time 0.5}, :create-args [5]}},
-                                                                                       :connections #{[:cljs-audio.updates/in :fx] [:fx :cljs-audio.updates/out]}}}, :connections #{[:osc :fx] [:fx :cljs-audio.updates/out]}})
-
-
-
-#_(run-update->commands [empty-patch [{:io [:gain {:gain 1}]}
-                                      #{[:io :>]
-                                        [:> :io]}]])
-
-#_(run-update->commands [empty-patch delayed-waveforms-instance])
-
 (defn graph [{:keys [frequency]} time]
   [{
     :voice (m/simple-voice {:frequency (at-time! frequency
                                                  time)
                             :gain      (adsr! 0.03 0.15 0.6 0.3 0.2 1 time)
                             :type      "sawtooth"})
-    :fx    (m/multi-tap-delay {:times (mapv m/at-start [0.1 0.2 0.4 0.8]) :gains (mapv m/at-start [0.8 0.5 0.25 0.1])})
-    :out   [:gain {:gain 1}]
-    }
-   #{#_[:voice :out]
-     [:voice :fx]
+    :fx    (m/multi-tap-delay {:times (reduce into (mapv m/at-start [0.1 0.2 0.4 0.8])) :gains (reduce into (mapv m/at-start [0.8 0.5 0.25 0.1]))})
+    :out   [:gain {:gain 1}]}
+   #{[:voice :fx]
      [:fx :out]
      [:out :>]}])
 
@@ -534,8 +501,6 @@
                            :out   [:gain {:gain 1}]}
                           #{[:voice :fx] [:fx :out] [:out :>]}]
   )
-
-(run-update->commands [empty-patch super-complex-synth])
 
 (defn one-shot-sample [{:keys [buffer start-time rate] :or {buffer nil start-time nil rate 1}}]
   [{:player [:buffer-source (merge {:buffer buffer :playback-rate rate} (when start-time {:start start-time}))]}
