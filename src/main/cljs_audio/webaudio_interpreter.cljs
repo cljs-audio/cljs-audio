@@ -5,7 +5,7 @@
     [oops.core :refer [oapply oget oset!]]
     [medley.core :refer [dissoc-in]]))
 
-(defn set-parameter [[node-path parameter-name parameter-value] [ctx env polyfill buffers]]
+(defn set-parameter [[node-path parameter-name parameter-value] {:keys [env buffers] :as audio}]
   (let [node (get-in env node-path)
         param (case parameter-name
                 :type (oget node "type")
@@ -35,15 +35,14 @@
         :playback-rate (oset! node "playbackRate" parameter-value))
       ;; handle AudioParam case
       (set! (.-value param) parameter-value)))
-  env)
+  audio)
 
-(defn create-node [[node-path type create-args] [ctx env polyfill buffers]]
+(defn create-node [[node-path type create-args] {:keys [ctx env polyfill] :as audio}]
   (let [node
         (case type
           :audio-worklet (new polyfill ctx (first create-args))
           :analyser (oapply ctx "createAnalyser" create-args)
           :audio-buffer-source (do
-                                 (println :audio-buffer-source)
                                  (oapply ctx "createBufferSource" create-args))
           :audio-destination (oapply ctx "createAudioDestination" create-args)
           :biquad-filter (oapply ctx "createBiquadFilter" create-args)
@@ -67,17 +66,17 @@
                         node-path
                         node)]
       (if (type #{:oscillator :biquad-filter})
-        (set-parameter [node-path :frequency 0.0001] [ctx env polyfill buffers])
-        env))))
+        (set-parameter [node-path :frequency 0.0001] (into audio {:env env}))
+        (into audio {:env env})))))
 
-(defn connect [[from-path to-path] [ctx env polyfill buffers]]
+(defn connect [[from-path to-path] {:keys [ctx env] :as audio}]
   (let [from (get-in env from-path)
         to (if (= to-path [:ctx]) (.-destination ctx)
                                   (get-in env to-path))]
     (.connect from to)
-    env))
+    audio))
 
-(defn connect-parameter [[from-path to-path parameter-name] [ctx env polyfill buffers]]
+(defn connect-parameter [[from-path to-path parameter-name] {:keys [env] :as audio}]
   (let [from (get-in env from-path)
         node (get-in env to-path)
         param (case parameter-name
@@ -94,21 +93,21 @@
                 :playback-rate (oget node "playbackRate"))
         ]
     (.connect from param)
-    env))
+    audio))
 
-(defn start [[node-path time] [ctx env polyfill buffers]]
+(defn start [[node-path time] {:keys [env] :as audio}]
   (let [node (get-in env node-path)]
     (when (exists? (.-start node)) (.start node time)))
-  env)
+  audio)
 
-(defn stop [[node-path time] [ctx env polyfill buffers]]
+(defn stop [[node-path time] {:keys [env] :as audio}]
   (let [node (get-in env node-path)]
     (when (and node (exists? (.-stop node)))
       (try (.stop node time)
            (catch js/Error err (js/console.log (ex-cause err))))))
-  env)
+  audio)
 
-(defn schedule [[node-path param-name command args] [ctx env polyfill buffers]]
+(defn schedule [[node-path param-name command args] {:keys [env] :as audio}]
   (let [node (get-in env node-path)
         param (case param-name
                 :gain (oget node "gain")
@@ -133,36 +132,36 @@
         :set-value-at-time (oapply param "setValueAtTime" args)
         :set-value-curve-at-time (oapply param "setValueCurveAtTime" args))
       ))
-  env)
+  audio)
 
-(defn disconnect [[from-path to-path] [ctx env polyfill buffers]]
+(defn disconnect [[from-path to-path] {:keys [ctx env] :as audio}]
   (let [from-node (get-in env from-path)]
     (if (nil? to-path)
       (.disconnect from-node)
       (let [to-node (if (= to-path [:ctx]) (.-destination ctx)
                                            (get-in env to-path))]
         (.disconnect from-node to-node))))
-  env)
+  audio)
 
-(defn remove-node [[node-path] [ctx env polyfill buffers]]
+(defn remove-node [[node-path] {:keys [env] :as audio}]
   (let [node (get-in env node-path)]
     (if node
       (do (when (exists? (.-stop node))
             (try (.stop node)
                  (catch js/Error err (js/console.log (ex-cause err)))))
-          (dissoc-in env node-path))
-      env)))
+          (into audio {:env (dissoc-in env node-path)}))
+      audio)))
 
-(defn update->side-fx [[name & args] context]
+(defn update->side-fx [[name & args] audio]
   (case name
-    :add-node (create-node args context)
-    :set (set-parameter args context)
-    :connect (connect args context)
-    :connect-parameter (connect-parameter args context)
-    :disconnect (if (nil? (second args)) (disconnect [(first args) nil] context)
-                                         (disconnect args context))
-    :remove-node (remove-node args context)
-    :start (start args context)
-    :stop (stop args context)
-    :schedule (schedule args context)
+    :add-node (create-node args audio)
+    :set (set-parameter args audio)
+    :connect (connect args audio)
+    :connect-parameter (connect-parameter args audio)
+    :disconnect (if (nil? (second args)) (disconnect [(first args) nil] audio)
+                                         (disconnect args audio))
+    :remove-node (remove-node args audio)
+    :start (start args audio)
+    :stop (stop args audio)
+    :schedule (schedule args audio)
     ))

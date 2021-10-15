@@ -60,12 +60,14 @@
 (defn resume [{:keys [ctx]}]
   (.resume ctx))
 
-(defn eval-updates! [{:keys [ctx env polyfill buffers]} updates]
-  (reduce (fn [env update] (wi/update->side-fx update [ctx env polyfill buffers])) env updates))
+(defn eval-updates! [audio updates]
+  (reduce (fn [audio update] (wi/update->side-fx update audio))
+          audio
+          updates))
 
-(defn schedule! [env path commands]
+(defn schedule! [audio path commands]
   (let [param (last path)
         node-path (butlast path)
         full-path (take (* 2 (count node-path)) (interleave (repeat :group) node-path))]
     (doseq [[command & args] commands]
-      (wi/schedule [full-path param command args] env))))
+      (wi/schedule [full-path param command args] audio))))
