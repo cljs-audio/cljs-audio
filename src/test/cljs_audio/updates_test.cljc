@@ -91,13 +91,13 @@
     (is (= (run-update->commands [empty-patch simple-voice-instance])
            [[:add-node [:group :osc] :oscillator []]
             [:add-node [:group :vca] :gain []]
+            [:start [:group :osc] 0]
             [:set [:group :osc] :frequency 220]
             [:set [:group :osc] :detune 0]
             [:set [:group :osc] :type "triangle"]
             [:set [:group :vca] :gain 1]
             [:connect [:group :osc] [:group :vca]]
-            [:connect [:group :vca] [:ctx]]
-            [:start [:group :osc] 0]])))
+            [:connect [:group :vca] [:ctx]]])))
   (testing "remove compound synth"
     (is (= (run-update->commands [simple-voice-instance empty-patch])
            [[:disconnect [:group :osc]]
@@ -193,6 +193,7 @@
             [:add-node [:group :waveforms :group :vca] :gain []]
             [:add-node [:group :osc] :oscillator [1 2]]
             [:add-node [:group :vca3] :gain []]
+            [:start [:group :waveforms :group :osc] 0]
             [:set [:group :waveforms :group :osc] :frequency 666]
             [:set [:group :waveforms :group :osc] :detune 0]
             [:set [:group :waveforms :group :osc] :type "triangle"]
@@ -206,7 +207,7 @@
             [:connect [:group :osc] [:group :waveforms :group :cljs-audio.updates/in]]
             [:connect [:group :vca3] [:ctx]]
             [:connect [:group :waveforms :group :cljs-audio.updates/out] [:group :vca3]]
-            [:start [:group :waveforms :group :osc] 0]]
+            ]
            ))))
 
 (def add-connection-simple
