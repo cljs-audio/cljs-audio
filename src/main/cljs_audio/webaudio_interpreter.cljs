@@ -112,6 +112,7 @@
   (let [node (get-in env node-path)
         param (case param-name
                 :gain (oget node "gain")
+                :delay-time (oget node "delayTime")
                 :detune (oget node "detune")
                 :frequency (oget node "frequency")
                 :playback-rate (oget node "playbackRate")
@@ -166,5 +167,5 @@
     :schedule (schedule args context)
     ))
 
-(defn eval-updates! [ctx env polyfill buffers updates]
+(defn eval-updates! [{:keys [ctx env polyfill buffers]} updates]
   (reduce (fn [env update] (update->side-fx update [ctx env polyfill buffers])) env updates))

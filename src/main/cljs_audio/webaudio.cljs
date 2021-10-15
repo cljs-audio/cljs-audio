@@ -1,6 +1,6 @@
 (ns cljs-audio.webaudio
   (:require
-    [cljs-audio.webaudio-interpreter :as wi :refer [eval-updates! schedule]]
+    [cljs-audio.webaudio-interpreter :as wi :refer [schedule]]
     [cljs.core.async :refer [go promise-chan put! <! >! take!]]
     [cljs.core.async.interop :refer-macros [<p!]]
     [cognitect.transit :as t]
@@ -24,9 +24,6 @@
      :stream   stream
      :workers  (main/create-pool 4 "js/worker.js")
      :buffers  buffers}))
-
-(defn apply-updates [{:keys [ctx env polyfill buffers]} updates]
-  (eval-updates! ctx env polyfill buffers updates))
 
 (defn shift-schedule-time [args delta]
   (if (and (> (count args) 1) (not= 0 (second args)))
@@ -72,17 +69,17 @@
   "Returns current audio context time."
   [{:keys [ctx]}] (.-currentTime ctx))
 
-(defn calculate-updates [{:keys [patch workers] :as audio} new-patch]
+(defn calculate-updates [{:keys [patch workers]} new-patch]
   "Generates updated state of cljs-audio instance
   and executes web audio side effects.
   Returns updated state."
-  (let [p (p/deferred)
-        start-time (current-time audio)]
+  (let [p (p/deferred)]
     (take! (main/do-with-pool! workers {:handler   :patches->commands,
                                         :arguments {:old-patch patch
                                                     :new-patch new-patch}})
-           #(p/resolve! p {:updates   (:data %)
-                           :work-time (- (current-time audio) start-time)}))
+           (fn [result] (when (= (:state result) :error)
+                          (println (:error result)))
+             (p/resolve! p (:data result))))
     p))
 
 (defn resume [{:keys [ctx]}]
@@ -96,22 +93,11 @@
                                       (cb (- elapsed-time interval))))
                (* 1000 interval)))
 
+(def eval-updates! wi/eval-updates!)
+
 (defn schedule! [env path commands]
   (let [param (last path)
         node-path (butlast path)
         full-path (take (* 2 (count node-path)) (interleave (repeat :group) node-path))]
     (doseq [[command & args] commands]
       (schedule [full-path param command args] env))))
-
-(defn start! [env path value]
-  (let [full-path (take (* 2 (count path)) (interleave (repeat :group) path))
-        node (get-in env full-path)]
-    (println :node node full-path env)
-    ;(println (conj (vec (drop-last 2 full-path)) :connections))
-    (try
-      (.start node value)
-      (catch js/Error e
-        (when (= (.-name e) "InvalidStateError") (println "Can't start more than once."))))
-    #_(let [env (wi/create-node [full-path :buffer-source []] [ctx env polyfill buffers])]
-      (wi/connect [full-path (into (vec (drop-last full-path)) [::up/out])] [ctx env polyfill buffers]))
-    ))
