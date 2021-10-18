@@ -20,7 +20,7 @@
      :env      {}
      :polyfill (get polyfill "AudioWorkletNode" js/AudioWorkletNode)
      :stream   stream
-     :workers  (main/create-pool 4 "js/worker.js")
+     :workers  (main/create-pool 1 "js/worker.js")
      :buffers  buffers}))
 
 (defn add-module [{:keys [ctx]} path]
