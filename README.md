@@ -1,3 +1,5 @@
+![cljs-audio logo](logo.svg)
+
 Beware! The project is in highly experimental state.
 
 # cljs-audio
