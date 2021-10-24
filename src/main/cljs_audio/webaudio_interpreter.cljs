@@ -19,7 +19,9 @@
                 :gain (oget node "gain")
                 :buffer (oget node "buffer")
                 :playback-rate (oget node "playbackRate"))]
-    (if (nil? param)
+    (if (exists? (.-value param))
+      ;; handle AudioParam case
+      (set! (.-value param) parameter-value)
       ;; handle primitive param case
       (case parameter-name
         :type (oset! node "type" parameter-value)
@@ -32,9 +34,7 @@
         :frequency (oset! node "frequency" parameter-value)
         :gain (oset! node "gain" parameter-value)
         :buffer (oset! node "buffer" (get buffers parameter-value))
-        :playback-rate (oset! node "playbackRate" parameter-value))
-      ;; handle AudioParam case
-      (set! (.-value param) parameter-value)))
+        :playback-rate (oset! node "playbackRate" parameter-value))))
   audio)
 
 (defn create-node [[node-path type create-args] {:keys [ctx env polyfill] :as audio}]
@@ -64,10 +64,13 @@
           :buffer-source (oapply ctx "createBufferSource" create-args))]
     (let [env (assoc-in env
                         node-path
-                        node)]
+                        node)
+          new-audio (into audio {:env env})]
+      (println "Create node!")
       (if (type #{:oscillator :biquad-filter})
-        (set-parameter [node-path :frequency 0.0001] (into audio {:env env}))
-        (into audio {:env env})))))
+        (set-parameter [node-path :frequency 0.00001]
+                       new-audio)
+        new-audio))))
 
 (defn connect [[from-path to-path] {:keys [ctx env] :as audio}]
   (let [from (get-in env from-path)
